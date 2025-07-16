@@ -4,8 +4,14 @@ import { auth } from "../firebase";
 import { useNavigate } from "react-router-dom";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { FaSignOutAlt, FaBell, FaCalendarAlt, FaBook, FaUsers, FaChartLine, FaUniversity, FaSearch, FaTimes, FaChevronRight, FaHome, FaUser, FaCog, FaEnvelope } from "react-icons/fa";
+import { 
+  FaSignOutAlt, FaBell, FaCalendarAlt, FaBook, 
+  FaUsers, FaChartLine, FaUniversity, FaSearch, 
+  FaTimes, FaChevronRight, FaHome, FaUser, 
+  FaCog, FaEnvelope, FaUserCircle 
+} from "react-icons/fa";
 import "./Home.css";
+import UserSession from "../utils/UserSession";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -15,6 +21,12 @@ const Home = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeMenu, setActiveMenu] = useState("home");
   const [isLoggedIn, setIsLoggedIn] = useState(true);
+  const [userDetails, setUserDetails] = useState({
+    name: "",
+    email: "",
+    role: "",
+    faculty: ""
+  });
 
   // Sample announcements data
   const announcements = {
@@ -188,40 +200,45 @@ const Home = () => {
     ]
   };
 
-  const filterAnnouncements = (announcements) => {
-    return announcements.filter(announcement => {
-      return announcement.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-             announcement.content.toLowerCase().includes(searchQuery.toLowerCase());
-    });
-  };
-
   useEffect(() => {
+    // Load user details from UserSession
+    const user = UserSession.currentUser;
+    setUserDetails({
+      name: user.name || "User",
+      email: user.email,
+      role: user.role || "Student",
+      faculty: user.faculty || "Computing"
+    });
+
     const unsubscribe = auth.onAuthStateChanged(user => {
       if (!user) {
         navigate("/");
       } else {
         setIsLoggedIn(true);
       }
-    });
+    }
+  
+  
+  );
 
     // Initial animation
-    gsap.from(containerRef.current, {
-      opacity: 0,
-      duration: 0.5,
-      ease: "power2.out"
-    });
+    
 
-    // Card animations
+    // Card animations - will be triggered when they come into view
     gsap.utils.toArray(".announcement-card").forEach((card, i) => {
-      gsap.from(card, {
-        opacity: 0,
-        y: 20,
-        duration: 0.5,
-        delay: i * 0.1,
-        scrollTrigger: {
-          trigger: card,
-          start: "top 80%",
-          toggleActions: "play none none none"
+      gsap.set(card, { opacity: 0, y: 20 });
+      
+      ScrollTrigger.create({
+        trigger: card,
+        start: "top 80%",
+        onEnter: () => {
+          gsap.to(card, {
+            opacity: 1,
+            y: 0,
+            duration: 0.5,
+            delay: i * 0.1,
+            ease: "power2.out"
+          });
         }
       });
     });
@@ -232,8 +249,16 @@ const Home = () => {
     };
   }, [navigate]);
 
+  const filterAnnouncements = (announcements) => {
+    return announcements.filter(announcement => {
+      return announcement.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+             announcement.content.toLowerCase().includes(searchQuery.toLowerCase());
+    });
+  };
+
   const handleLogout = async () => {
     await signOut(auth);
+    UserSession.clearUser();
     setIsLoggedIn(false);
     navigate("/", { replace: true });
   };
@@ -244,17 +269,14 @@ const Home = () => {
       navigate("/home", { replace: true });
     }
   };
-  useEffect(() => {
-  gsap.from(containerRef.current, {
-    opacity: 0,
-    duration: 0.5,
-    ease: "power2.out",
-    onComplete: () => {
-      containerRef.current.style.opacity = 1;
-    }
-  });
-}, []);
 
+  const navigateToProfile = () => {
+    gsap.to(containerRef.current, {
+      opacity: 0,
+      duration: 0.3,
+      onComplete: () => navigate("/profile")
+    });
+  };
 
   useEffect(() => {
     window.addEventListener('popstate', handleBackButton);
@@ -287,7 +309,10 @@ const Home = () => {
             </li>
             <li 
               className={activeMenu === "profile" ? "active" : ""}
-              onClick={() => setActiveMenu("profile")}
+              onClick={() => {
+                setActiveMenu("profile");
+                navigateToProfile();
+              }}
             >
               <FaUser className="nav-icon" />
               <span>Profile</span>
@@ -337,10 +362,13 @@ const Home = () => {
           </div>
           
           <div className="user-info">
-            <span>Welcome, {auth.currentUser?.email}</span>
-            <div className="user-avatar">
-              {auth.currentUser?.email.charAt(0).toUpperCase()}
-            </div>
+            <span>Welcome, {userDetails.name}</span>
+            <button 
+              className="profile-btn"
+              onClick={navigateToProfile}
+            >
+              <FaUserCircle className="profile-icon" />
+            </button>
           </div>
         </header>
 

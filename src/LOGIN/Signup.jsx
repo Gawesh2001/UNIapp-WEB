@@ -15,7 +15,8 @@ import {
   FaBook, 
   FaCheckCircle,
   FaExclamationCircle,
-  FaInfoCircle
+  FaInfoCircle,
+  FaCalendarAlt
 } from "react-icons/fa";
 import { gsap } from "gsap";
 import "./Auth.css";
@@ -27,6 +28,7 @@ const Signup = () => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [name, setName] = useState("");
+  const [batchNumber, setBatchNumber] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -46,6 +48,7 @@ const Signup = () => {
   const emailRef = useRef();
   const passwordRef = useRef();
   const confirmRef = useRef();
+  const batchRef = useRef();
   const roleRef = useRef();
   const facultyRef = useRef();
   const degreeRef = useRef();
@@ -58,7 +61,7 @@ const Signup = () => {
   useEffect(() => {
     // Set initial positions (off-screen)
     gsap.set([nameRef.current, emailRef.current], { x: -100, opacity: 0 });
-    gsap.set([passwordRef.current, confirmRef.current], { x: 100, opacity: 0 });
+    gsap.set([passwordRef.current, confirmRef.current, batchRef.current], { x: 100, opacity: 0 });
     gsap.set([roleRef.current, facultyRef.current, degreeRef.current], { y: 30, opacity: 0 });
     gsap.set(signupRef.current, { y: 50, opacity: 0 });
     gsap.set(footerRef.current, { y: 30, opacity: 0 });
@@ -112,6 +115,13 @@ const Signup = () => {
       duration: 0.5,
       ease: "power2.out"
     }, "-=0.4");
+
+    tl.to(batchRef.current, {
+      x: 0,
+      opacity: 1,
+      duration: 0.5,
+      ease: "power2.out"
+    }, "-=0.3");
 
     // Role, faculty, and degree program fields
     tl.to(roleRef.current, {
@@ -196,7 +206,8 @@ const Signup = () => {
     e.preventDefault();
     
     // Validate form inputs
-    if (!name || !email || !password || !confirmPassword || !role || (role === "student" && (!faculty || !degreeProgram))) {
+    if (!name || !email || !password || !confirmPassword || !role || 
+        (role === "student" && (!faculty || !degreeProgram || !batchNumber))) {
       setError("Please fill all required fields");
       return;
     }
@@ -233,8 +244,9 @@ const Signup = () => {
         name,
         email,
         role,
+        batchNumber: role === "student" ? batchNumber : null,
         faculty: role === "student" ? faculty : null,
-        degreeProgram,
+        degreeProgram: role === "student" ? degreeProgram : null,
         emailVerified: false,
         createdAt: serverTimestamp(),
         lastLogin: serverTimestamp()
@@ -378,6 +390,19 @@ const Signup = () => {
                 {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
               </button>
             </div>
+
+            {role === "student" && (
+              <div className="input-group" ref={batchRef}>
+                <FaCalendarAlt className="input-icon" />
+                <input
+                  type="text"
+                  placeholder="Batch Number (e.g., NSBM2021)"
+                  value={batchNumber}
+                  onChange={(e) => setBatchNumber(e.target.value)}
+                  required={role === "student"}
+                />
+              </div>
+            )}
 
             <div className="role-selection" ref={roleRef}>
               <div className="role-label">

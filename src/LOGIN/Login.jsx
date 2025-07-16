@@ -3,6 +3,9 @@ import { signInWithEmailAndPassword, sendPasswordResetEmail } from "firebase/aut
 import { auth } from "../firebase";
 import { useNavigate, Link } from "react-router-dom";
 import { FaEnvelope, FaLock, FaEye, FaEyeSlash } from "react-icons/fa";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "../firebase";
+import UserSession from "../utils/UserSession";
 import { gsap } from "gsap";
 import "./Auth.css";
 
@@ -32,26 +35,20 @@ const Login = () => {
 
   // Initial animations on component mount
   useEffect(() => {
-    // Immediately hide everything before any rendering can occur
     gsap.set(containerRef.current, { autoAlpha: 0 });
     gsap.set(cardRef.current, { autoAlpha: 0 });
     
-    // Set initial positions (off-screen) for all animated elements
     gsap.set([welcomeRef.current, emailRef.current, passwordRef.current], { y: 20, autoAlpha: 0 });
     gsap.set(forgotRef.current, { y: 50, autoAlpha: 0 });
     gsap.set(loginRef.current, { y: 50, autoAlpha: 0 });
     gsap.set(footerRef.current, { y: 30, autoAlpha: 0 });
 
-    // Create a slight delay to ensure everything is properly hidden
     const timer = setTimeout(() => {
-      // Make container and card visible
       gsap.to(containerRef.current, { autoAlpha: 1, duration: 0 });
       gsap.to(cardRef.current, { autoAlpha: 1, duration: 0 });
 
-      // Animation timeline
       const tl = gsap.timeline();
 
-      // Welcome message animation (center screen)
       tl.from(welcomeRef.current, {
         duration: 0.8,
         scale: 0.5,
@@ -60,7 +57,6 @@ const Login = () => {
         ease: "back.out(1.7)"
       });
 
-      // Move welcome message up
       tl.to(welcomeRef.current, {
         y: -20,
         autoAlpha: 1,
@@ -68,7 +64,6 @@ const Login = () => {
         ease: "power2.out"
       });
 
-      // Form elements fly in from left
       tl.to(emailRef.current, {
         y: 0,
         autoAlpha: 1,
@@ -83,7 +78,6 @@ const Login = () => {
         ease: "power2.out"
       }, "-=0.4");
 
-      // Forgot password comes up from bottom
       tl.to(forgotRef.current, {
         y: 0,
         autoAlpha: 1,
@@ -91,7 +85,6 @@ const Login = () => {
         ease: "back.out(1.7)"
       }, "-=0.3");
 
-      // Login button comes up from bottom
       tl.to(loginRef.current, {
         y: 0,
         autoAlpha: 1,
@@ -99,21 +92,19 @@ const Login = () => {
         ease: "back.out(1.7)"
       }, "-=0.4");
 
-      // Footer comes up
       tl.to(footerRef.current, {
         y: 0,
         autoAlpha: 1,
         duration: 0.5,
         ease: "power2.out"
       }, "-=0.3");
-    }, 50); // Small delay to ensure everything is properly set
+    }, 50);
 
     return () => {
       clearTimeout(timer);
     };
   }, []);
 
-  // Error message animation
   useEffect(() => {
     if (error) {
       gsap.fromTo(errorRef.current, 
@@ -123,7 +114,6 @@ const Login = () => {
     }
   }, [error]);
 
-  // Reset modal animation
   useEffect(() => {
     if (isResetOpen) {
       gsap.fromTo(resetModalRef.current, 
@@ -137,22 +127,49 @@ const Login = () => {
     e.preventDefault();
     setIsLoading(true);
     setError("");
-    
+
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      // Exit animation before navigation
-      const tl = gsap.timeline();
-      tl.to(cardRef.current, {
-        y: -50,
-        autoAlpha: 0,
-        duration: 0.6,
-        ease: "power2.in"
-      });
-      tl.to(containerRef.current, {
-        backgroundColor: "#000000",
-        duration: 0.8,
-        onComplete: () => navigate("/home")
-      }, "-=0.4");
+      // Sign in with Firebase Authentication
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+      
+      // Get user document directly by UID
+      const userDocRef = doc(db, "UserDetails", user.uid);
+      const userDoc = await getDoc(userDocRef);
+
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+
+        // Save user data in UserSession
+        UserSession.setUser({
+          batchNumber: userData.batchNumber || "",
+          degreeProgram: userData.degreeProgram || "",
+          email: userData.email || user.email,
+          faculty: userData.faculty || "",
+          name: userData.name || "",
+          role: userData.role || "",
+          uid: user.uid,
+        });
+
+        console.log("User session stored:", UserSession);
+
+        // Exit animation before navigation
+        const tl = gsap.timeline();
+        tl.to(cardRef.current, {
+          y: -50,
+          autoAlpha: 0,
+          duration: 0.6,
+          ease: "power2.in"
+        });
+        tl.to(containerRef.current, {
+          backgroundColor: "#000000",
+          duration: 0.8,
+          onComplete: () => navigate("/home")
+        }, "-=0.4");
+      } else {
+        setError("User details not found. Please contact support.");
+        setIsLoading(false);
+      }
     } catch (err) {
       setError(err.message);
       setIsLoading(false);
@@ -204,7 +221,7 @@ const Login = () => {
       ref={containerRef} 
       style={{ 
         visibility: "hidden",
-        backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url('https://media.licdn.com/dms/image/v2/C561BAQEOoczaGxpdNg/company-background_10000/company-background_10000/0/1628311829240/human_resource_circle_of_nsbm_green_university_cover?e=2147483647&v=beta&t=lTFSwYGtxTxqdjSKT9gQqSd5BybpeKxa0beuTa-MaV0')`,
+        backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url('https://scontent.fcmb1-2.fna.fbcdn.net/v/t1.6435-9/65319199_3549599095134407_2355776629709471744_n.jpg?_nc_cat=103&ccb=1-7&_nc_sid=cc71e4&_nc_eui2=AeHHlNnhXIiJoMbdeyhauAtUFzIH4sTJ_J0XMgfixMn8nYlxUSnI0-2ZZQqvZiLIvgqbguap__X9MnW7JbKreyf9&_nc_ohc=8J7DBs57i1AQ7kNvwEQTCkM&_nc_oc=AdnpRBvpelXpOCm3BDJ7t-fN9lAIIF-fgTmN3yxJ6lBq9H-AexqhONSuix_nY_5O_7w&_nc_zt=23&_nc_ht=scontent.fcmb1-2.fna&_nc_gid=I7Ny5DybvihemwNFvyT59Q&oh=00_AfQDtcPH4piG1rFTC0GLg8yGYwY78wWVM3YAk3MFT52_ww&oe=689D6555')`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat'
