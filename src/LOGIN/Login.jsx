@@ -1,8 +1,12 @@
 import React, { useState, useEffect, useRef } from "react";
-import { signInWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
+import { 
+  signInWithEmailAndPassword, 
+  sendPasswordResetEmail, 
+  sendEmailVerification 
+} from "firebase/auth";
 import { auth } from "../firebase";
 import { useNavigate, Link } from "react-router-dom";
-import { FaEnvelope, FaLock, FaEye, FaEyeSlash } from "react-icons/fa";
+import { FaEnvelope, FaLock, FaEye, FaEyeSlash, FaCheckCircle, FaExclamationCircle } from "react-icons/fa";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../firebase";
 import UserSession from "../utils/UserSession";
@@ -18,6 +22,8 @@ const Login = () => {
   const [isResetOpen, setIsResetOpen] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
   const [resetSent, setResetSent] = useState(false);
+  const [verificationSent, setVerificationSent] = useState(false);
+  const [needsVerification, setNeedsVerification] = useState(false);
   const navigate = useNavigate();
 
   // Refs for GSAP animations
@@ -32,6 +38,7 @@ const Login = () => {
   const footerRef = useRef();
   const errorRef = useRef();
   const resetModalRef = useRef();
+  const verificationRef = useRef();
 
   // Initial animations on component mount
   useEffect(() => {
@@ -123,22 +130,49 @@ const Login = () => {
     }
   }, [isResetOpen]);
 
+  useEffect(() => {
+    if (verificationSent) {
+      gsap.fromTo(verificationRef.current, 
+        { y: -20, autoAlpha: 0 }, 
+        { y: 0, autoAlpha: 1, duration: 0.5, ease: "back.out" }
+      );
+    }
+  }, [verificationSent]);
+
   const handleLogin = async (e) => {
     e.preventDefault();
     setIsLoading(true);
     setError("");
+    setVerificationSent(false);
+    setNeedsVerification(false);
 
     try {
       // Sign in with Firebase Authentication
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
       
+      // Check if email is verified in Firebase Auth
+      if (!user.emailVerified) {
+        setNeedsVerification(true);
+        setError("Please verify your email address before logging in.");
+        setIsLoading(false);
+        return;
+      }
+
       // Get user document directly by UID
       const userDocRef = doc(db, "UserDetails", user.uid);
       const userDoc = await getDoc(userDocRef);
 
       if (userDoc.exists()) {
         const userData = userDoc.data();
+
+        // Check if email is verified in Firestore (additional check)
+        if (userData.emailVerified !== true) {
+          setNeedsVerification(true);
+          setError("Please verify your email address before logging in.");
+          setIsLoading(false);
+          return;
+        }
 
         // Save user data in UserSession
         UserSession.setUser({
@@ -173,6 +207,19 @@ const Login = () => {
     } catch (err) {
       setError(err.message);
       setIsLoading(false);
+    }
+  };
+
+  const handleSendVerification = async () => {
+    try {
+      const user = auth.currentUser;
+      if (user) {
+        await sendEmailVerification(user);
+        setVerificationSent(true);
+        setError("");
+      }
+    } catch (err) {
+      setError(err.message);
     }
   };
 
@@ -211,6 +258,7 @@ const Login = () => {
       onComplete: () => {
         setIsResetOpen(false);
         setResetSent(false);
+        setResetEmail("");
       }
     });
   };
@@ -233,7 +281,19 @@ const Login = () => {
           <p>Please enter your credentials to login</p>
         </div>
 
-        {error && <div className="auth-error" ref={errorRef}>{error}</div>}
+        {error && <div className="auth-error" ref={errorRef}>
+          {error === "Please verify your email address before logging in." ? (
+            <FaExclamationCircle style={{ marginRight: "8px" }} />
+          ) : null}
+          {error}
+        </div>}
+
+        {verificationSent && (
+          <div className="auth-success" ref={verificationRef}>
+            <FaCheckCircle style={{ marginRight: "8px" }} />
+            Verification email sent! Please check your inbox.
+          </div>
+        )}
 
         <form onSubmit={handleLogin} className="auth-form" ref={formRef}>
           <div className="input-group" ref={emailRef}>
@@ -274,6 +334,17 @@ const Login = () => {
               Forgot password?
             </button>
           </div>
+
+          {needsVerification && (
+            <button 
+              type="button" 
+              className="auth-button secondary"
+              onClick={handleSendVerification}
+              style={{ marginBottom: "10px" }}
+            >
+              Resend Verification Email
+            </button>
+          )}
 
           <button 
             type="submit" 

@@ -38,6 +38,7 @@ const Signup = () => {
   const [faculty, setFaculty] = useState("");
   const [degreeProgram, setDegreeProgram] = useState("");
   const [verificationSent, setVerificationSent] = useState(false);
+  const [userCredential, setUserCredential] = useState(null);
   const navigate = useNavigate();
 
   // Refs for GSAP animations
@@ -186,7 +187,7 @@ const Signup = () => {
     const domain = email.split('@')[1] || '';
     
     // Check if email ends with nsbm.ac.lk
-    if (!domain.endsWith('nsbm.ac.lk')) {
+    if (!domain.endsWith('nsbm.ac.lk') ) {
       return { valid: false, error: "Please use your NSBM email address (@nsbm.ac.lk)" };
     }
     
@@ -195,9 +196,9 @@ const Signup = () => {
       return { valid: false, error: "Student email must contain 'students' in the domain" };
     }
     
-    if (selectedRole === "staff" && !domain.includes('staff')) {
+      if (selectedRole === "staff" && !domain.includes('staff')) {
       return { valid: false, error: "Staff email must contain 'staff' in the domain" };
-    }
+     }
     
     return { valid: true };
   };
@@ -229,16 +230,36 @@ const Signup = () => {
     
     try {
       // Create user in Firebase Auth
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
+      const credential = await createUserWithEmailAndPassword(auth, email, password);
+      setUserCredential(credential);
       
       // Send verification email
-      await sendEmailVerification(user);
+      await sendEmailVerification(credential.user);
       
       setVerificationSent(true);
       setSuccess("Verification email sent! Please check your inbox to verify your email.");
       
-      // Save user data to Firestore
+      setIsLoading(false);
+    } catch (err) {
+      setError(err.message);
+      setIsLoading(false);
+    }
+  };
+
+  const handleContinueToLogin = async () => {
+    setIsLoading(true);
+    try {
+      // Check if email is verified
+      await auth.currentUser.reload();
+      const user = auth.currentUser;
+      
+      if (!user.emailVerified) {
+        setError("Email not verified yet. Please check your inbox and verify your email first.");
+        setIsLoading(false);
+        return;
+      }
+
+      // Save user data to Firestore with emailVerified: true
       const userData = {
         uid: user.uid,
         name,
@@ -247,14 +268,27 @@ const Signup = () => {
         batchNumber: role === "student" ? batchNumber : null,
         faculty: role === "student" ? faculty : null,
         degreeProgram: role === "student" ? degreeProgram : null,
-        emailVerified: false,
+        emailVerified: true, // Set to true since they've verified
         createdAt: serverTimestamp(),
         lastLogin: serverTimestamp()
       };
       
       await setDoc(doc(db, "UserDetails", user.uid), userData);
       
-      setIsLoading(false);
+      // Animation before navigation
+      const tl = gsap.timeline();
+      tl.to(cardRef.current, {
+        y: -50,
+        opacity: 0,
+        duration: 0.6,
+        ease: "power2.in"
+      });
+      tl.to(containerRef.current, {
+        backgroundColor: "#4BB543",
+        duration: 0.8,
+        onComplete: () => navigate("/login")
+      }, "-=0.4");
+      
     } catch (err) {
       setError(err.message);
       setIsLoading(false);
@@ -279,22 +313,6 @@ const Signup = () => {
       yoyo: true,
       repeat: 1
     });
-  };
-
-  const handleContinueToLogin = () => {
-    // Animation before navigation
-    const tl = gsap.timeline();
-    tl.to(cardRef.current, {
-      y: -50,
-      opacity: 0,
-      duration: 0.6,
-      ease: "power2.in"
-    });
-    tl.to(containerRef.current, {
-      backgroundColor: "#4BB543",
-      duration: 0.8,
-      onComplete: () => navigate("/login")
-    }, "-=0.4");
   };
 
   return (
@@ -539,8 +557,9 @@ const Signup = () => {
             <button 
               onClick={handleContinueToLogin}
               className="auth-button primary"
+              disabled={isLoading}
             >
-              Continue to Login
+              {isLoading ? 'Verifying...' : 'Continue to Login'}
             </button>
 
             <div className="auth-footer" ref={footerRef}>
