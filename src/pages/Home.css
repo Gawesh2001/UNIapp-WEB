@@ -494,6 +494,13 @@ body {
   margin: 40px;
 }
 
+.chat-groups{
+  margin-top: 20px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-evenly;
+}
+
 .circle {
   width: 80px;
   height: 80px;
@@ -501,7 +508,7 @@ body {
   color: white;
   font-weight: bold;
   font-size: 1.5rem;
-  display: flex;
+  display: inline-flex; /* important fix */
   justify-content: center;
   align-items: center;
   text-decoration: none;
@@ -509,6 +516,13 @@ body {
   cursor: pointer;
   transition: background-color 0.3s ease;
   background-color: #2C3E50;
+  white-space: nowrap;  /* prevent stretching */
+  overflow: hidden;     /* hide overflow text if any */
 }
+
+.circle:hover {
+  background-color: var(--nsbm-green);
+}
+
 
 

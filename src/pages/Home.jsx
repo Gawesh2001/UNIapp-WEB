@@ -37,7 +37,17 @@ const Home = () => {
     email: "",
     role: "",
     faculty: "",
+    degreeProgram: "",
+    batchNumber: "",
   });
+
+  const getInitials = (text) =>
+    text
+      .trim()
+      .split(" ")
+      .map((word) => word[0])
+      .join("")
+      .toUpperCase();
 
   // Sample announcements data
   const announcements = {
@@ -239,6 +249,8 @@ const Home = () => {
       email: user.email,
       role: user.role || "Student",
       faculty: user.faculty || "Computing",
+      degreeProgram: user.degreeProgram,
+      batchNumber: user.batchNumber || "23.2",
     });
 
     const unsubscribe = auth.onAuthStateChanged((user) => {
@@ -401,23 +413,70 @@ const Home = () => {
           </div>
         </header>
 
-        <NavLink
-          to="/chatPage"
-          // to={`/group-${userDetails.faculty
-          //   .toLowerCase()
-          //   .replace(/\s+/g, "-")
-          //   .replace(/[()]/g, "")
-          //   .replace(/[^a-z0-9-]/g, "")}`}
-        >
-          <div className="circle">
-            {userDetails.faculty
-              .trim()
-              .split(" ")
-              .map((word) => word[0])
-              .join("")
-              .toUpperCase()}
-          </div>
-        </NavLink>
+        <div className="chat-groups">
+          {userDetails?.faculty && (
+            <NavLink
+              to="/chatPage"
+              state={{
+                chatPath: ["Faculties", userDetails.faculty, "chat"],
+                title: userDetails.faculty,
+                userFilter: [{ field: "faculty", value: userDetails.faculty }],
+              }}
+            >
+              <div className="circle">{getInitials(userDetails.faculty)}</div>
+            </NavLink>
+          )}
+
+          {userDetails?.faculty && userDetails?.degreeProgram && (
+            <NavLink
+              to="/chatPage"
+              state={{
+                chatPath: [
+                  "Faculties",
+                  userDetails.faculty,
+                  "Degrees",
+                  userDetails.degreeProgram,
+                  "chat",
+                ],
+                title: userDetails.degreeProgram,
+                userFilter: [
+                  { field: "degreeProgram", value: userDetails.degreeProgram },
+                ],
+              }}
+            >
+              <div className="circle">
+                {getInitials(
+                  userDetails.degreeProgram.replace(/^BSc\s*\(Hons\)\s*/i, "")
+                )}
+              </div>
+            </NavLink>
+          )}
+
+          {userDetails?.faculty &&
+            userDetails?.degreeProgram &&
+            userDetails?.batchNumber && (
+              <NavLink
+                to="/chatPage"
+                state={{
+                  chatPath: [
+                    "Faculties",
+                    userDetails.faculty,
+                    "Degrees",
+                    userDetails.degreeProgram,
+                    "Batches",
+                    userDetails.batchNumber,
+                    "chat",
+                  ],
+                  title: userDetails.batchNumber,
+                  userFilter: [
+                    { field: "batchNumber", value: userDetails.batchNumber },
+                  ],
+                }}
+              >
+                <div className="circle">{userDetails.batchNumber}</div>
+              </NavLink>
+            )}
+        </div>
 
         {/* Dashboard Content */}
         <div className="dashboard-content">

@@ -5,6 +5,7 @@ import Home from "./pages/Home"; // create a dummy Home page
 import Signup from "./LOGIN/Signup";
 import Profile from "./pages/Profile";
 import ChatPage from "./pages/ChatPage";
+import ChatPageWrapper from "./components/ChatPageWrapper";
 
 function App() {
   return (
@@ -15,7 +16,7 @@ function App() {
         <Route path="/home" element={<Home />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/profile" element={<Profile />} />
-        <Route path="/chatPage" element={<ChatPage />} />
+        <Route path="/chatPage" element={<ChatPageWrapper />} />
       </Routes>
     </Router>
   );
