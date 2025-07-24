@@ -38,12 +38,14 @@
 
 
 .chat-messages {
+  height: calc(100vh - 180px); 
   flex: 1;
   padding: 20px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 12px;
+  scroll-behavior: smooth;
 }
 
 .chat-bubble {
@@ -155,5 +157,108 @@
   justify-content: center;   /* justify-center */
   font-weight: bold;
   font-size: 14px;
+}
+
+.reply-preview {
+  background-color: #f0f0f0;
+  border-left: 4px solid #007bff;
+  padding: 6px 10px;
+  margin: 4px 20px;
+  font-size: 0.9rem;
+  position: relative;
+}
+
+.cancel-reply {
+  float: right;
+  cursor: pointer;
+  color: red;
+  font-weight: bold;
+}
+
+.reply-reference {
+  background-color: #5cabff;
+  padding: 4px 8px;
+  font-size: 0.85rem;
+  border-left: 3px solid #ffffff;
+  margin-bottom: 6px;
+  border-radius: 6px;
+}
+
+.mention {
+  color: #a1e3ff;
+  font-weight: bold;
+}
+
+.delete-btn {
+  background: none;
+  border: none;
+  color: #5cabff;
+  font-size: 1rem;
+  margin-top: 5px;
+  cursor: pointer;
+  float: right;
+}
+
+.delete-btn:hover{
+  color: white;
+}
+
+.time-dlt{
+  display: flex;
+  justify-content: space-between;
+  margin-top: 10px;
+}
+
+.chat-input-container {
+  position: relative; /* container must be relative */
+}
+
+.mention-suggestions {
+  position: absolute;
+  bottom: 70px; /* position above input (adjust if needed) */
+  left: 0;
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  max-height: 150px;
+  overflow-y: auto;
+  width: 300px;
+  list-style: none;
+  padding: 10px;
+  z-index: 10;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.mention-suggestion-item {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+  padding: 5px 10px;
+  cursor: pointer;
+}
+
+.mention-suggestion-item:hover {
+  background-color: #eee;
+}
+
+.mention-alert-btn {
+  position: fixed;
+  bottom: 90px;
+  right: 50px;
+  background: #007bff;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 48px;
+  height: 48px;
+  font-size: 24px;
+  font-weight: bold;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  z-index: 999;
+  transition: transform 0.2s ease;
+}
+.mention-alert-btn:hover {
+  transform: scale(1.1);
 }
 
