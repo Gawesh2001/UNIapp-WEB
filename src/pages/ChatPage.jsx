@@ -4,19 +4,17 @@ import UserSession from "../utils/UserSession";
 import { db } from "../firebase";
 import {
   collection,
-  addDoc,
-  onSnapshot,
-  serverTimestamp,
-  query,
-  orderBy,
-  where,
-  deleteDoc,
   doc,
-  updateDoc,
+  setDoc,
   getDoc,
-  setDoc
+  onSnapshot,
+  deleteDoc,
+  serverTimestamp,
+  orderBy,
+  query,
+  where,
 } from "firebase/firestore";
-import { FaChevronCircleLeft, FaTrash } from "react-icons/fa";
+import { FaChevronCircleLeft, FaTrash, FaReply, FaTimes} from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { nanoid } from "nanoid";
 
@@ -31,21 +29,15 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
   const chatBoxRef = useRef(null);
   const lastSeenRef = useRef(null);
   const [lastSeenMessageId, setLastSeenMessageId] = useState(null);
-
-  // --- New refs and states for mention feature ---
   const inputRef = useRef(null);
   const [mentionQuery, setMentionQuery] = useState("");
   const [showMentionList, setShowMentionList] = useState(false);
   const [mentionSuggestions, setMentionSuggestions] = useState([]);
-
   const [mentionAlert, setMentionAlert] = useState(null);
-const isAtBottomRef = useRef(true);
-const [mentionMessageId, setMentionMessageId] = useState(null);
+  const isAtBottomRef = useRef(true);
 
-const [showMentionAlert, setShowMentionAlert] = useState(false);
-
-
-
+  const [mentionQueue, setMentionQueue] = useState([]);
+  const [mentionIndex, setMentionIndex] = useState(0);
 
 
   useEffect(() => {
@@ -68,38 +60,39 @@ const [showMentionAlert, setShowMentionAlert] = useState(false);
     const q = query(chatRef, orderBy("time", "asc"));
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-  const chats = [];
-  snapshot.forEach((doc) => {
-    chats.push({ id: doc.id, ...doc.data() });
-  });
-  setMessages(chats);
+      const chats = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      setMessages(chats);
 
-  // Detect mention
-  const latestMention = chats.find(
-    (msg) =>
-      msg.msg?.includes(`@${userDetails.name}`) &&
-      msg.senderId !== userDetails.email
-  );
-  if (latestMention && !isAtBottomRef.current) {
-    setMentionAlert(latestMention.id);
-  }
-});
-
+      const latestMention = chats.find(
+        (msg) =>
+          msg.msg?.includes(`@${userDetails.name}`) &&
+          msg.senderId !== userDetails.email
+      );
+      if (latestMention && !isAtBottomRef.current) {
+        setMentionAlert(latestMention.id);
+      }
+    });
 
     return () => unsubscribe();
   }, [userDetails, chatPath]);
 
-  // Fetch last seen message ID
+  // Load lastSeenMessageId from user's subcollection
   useEffect(() => {
-    if (!userDetails || !chatPath) return;
-    const userDocRef = doc(db, ...chatPath, "seen_" + userDetails.id);
-    getDoc(userDocRef).then((docSnap) => {
+    if (!userDetails || !title) return;
+
+    const seenDocRef = doc(
+      db,
+      "UserDetails",
+      userDetails.id,
+      "chatLastSeen",
+      title
+    );
+    getDoc(seenDocRef).then((docSnap) => {
       if (docSnap.exists()) {
         setLastSeenMessageId(docSnap.data().lastSeenId);
       }
     });
-
-  }, [userDetails, chatPath]);
+  }, [userDetails, title]);
 
   useEffect(() => {
     if (!chatBoxRef.current || !chatEndRef.current || !messages.length || !userDetails) return;
@@ -120,11 +113,33 @@ const [showMentionAlert, setShowMentionAlert] = useState(false);
   }, [messages, userDetails]);
 
   useEffect(() => {
+    const chatBox = chatBoxRef.current;
+    if (!chatBox || !messages.length) return;
+
+    const handleScroll = () => {
+      const isAtBottom =
+        chatBox.scrollTop + chatBox.clientHeight >= chatBox.scrollHeight - 80;
+
+      isAtBottomRef.current = isAtBottom;
+
+      if (isAtBottom) {
+        const lastMsg = messages[messages.length - 1];
+        if (lastMsg?.id !== lastSeenMessageId) {
+          updateLastSeen(lastMsg.id);
+        }
+      }
+    };
+
+    chatBox.addEventListener("scroll", handleScroll);
+    return () => chatBox.removeEventListener("scroll", handleScroll);
+  }, [messages, lastSeenMessageId]);
+
+
+  useEffect(() => {
     if (lastSeenRef.current) {
       lastSeenRef.current.scrollIntoView({ behavior: "auto", block: "start" });
     }
   }, [lastSeenMessageId]);
-
 
   const sendMessage = async () => {
     if (!newMessage.trim()) return;
@@ -134,10 +149,9 @@ const [showMentionAlert, setShowMentionAlert] = useState(false);
     setNewMessage("");
     setReplyTo(null);
 
-    const title = chatPath.join("_");
-    const customId = `${title.trim()
-      .split(" ")
-      .map((word) => word[0])
+    const groupId = chatPath.join("_");
+    const customId = `${groupId.split(" ")
+      .map(word => word[0])
       .join("")
       .toUpperCase()}_${nanoid(8)}`;
 
@@ -150,11 +164,16 @@ const [showMentionAlert, setShowMentionAlert] = useState(false);
       replyTo: replyTo ? { name: replyTo.name, msg: replyTo.msg } : null,
     });
 
-    const seenDocRef = doc(db, ...chatPath, `seen_${userDetails.id}`);
+    // Save last seen message in user's chatLastSeen subcollection
+    const seenDocRef = doc(
+      db,
+      "UserDetails",
+      userDetails.id,
+      "chatLastSeen",
+      title
+    );
     await setDoc(seenDocRef, { lastSeenId: customId }, { merge: true });
   };
-
-
 
   const deleteMessage = async (id) => {
     const messageRef = doc(db, ...chatPath, id);
@@ -181,7 +200,6 @@ const [showMentionAlert, setShowMentionAlert] = useState(false);
     return () => unsubscribe();
   }, [userFilter]);
 
-  // --- New mention input change handler ---
   const handleInputChange = (e) => {
     const value = e.target.value;
     setNewMessage(value);
@@ -195,9 +213,9 @@ const [showMentionAlert, setShowMentionAlert] = useState(false);
       setMentionQuery(query);
       setShowMentionList(true);
 
-      // Filter sidebarUsers for suggestions
-      const filtered = sidebarUsers.filter((user) =>
-        user.name.toLowerCase().includes(query) && user.id !== userDetails.id
+      const filtered = sidebarUsers.filter(
+        (user) =>
+          user.name.toLowerCase().includes(query) && user.id !== userDetails.id
       );
       setMentionSuggestions(filtered);
     } else {
@@ -207,7 +225,6 @@ const [showMentionAlert, setShowMentionAlert] = useState(false);
     }
   };
 
-  // --- New mention suggestion click handler ---
   const handleMentionClick = (user) => {
     const input = inputRef.current;
     if (!input) return;
@@ -220,12 +237,12 @@ const [showMentionAlert, setShowMentionAlert] = useState(false);
     if (!mentionMatch) return;
 
     const mentionStart = caretPos - mentionMatch[0].length;
-    const mentionText = `@${user.name.split(" ").join(" ")}`; // use first name or username
+    const mentionText = `@${user.name.split(" ").join(" ")}`;
 
     const newText =
       textBeforeCaret.slice(0, mentionStart) +
       mentionText +
-      " " + // add space after mention
+      " " +
       textAfterCaret;
 
     setNewMessage(newText);
@@ -242,50 +259,50 @@ const [showMentionAlert, setShowMentionAlert] = useState(false);
     }, 0);
   };
 
-  //Scroll to the Mentioned message with @ button (WIP)
- useEffect(() => {
-  if (!messages.length || !userDetails || !lastSeenMessageId) return;
+  useEffect(() => {
+    if (!messages.length || !userDetails || !lastSeenMessageId) return;
 
-  let foundUnseenMention = false;
-  let latestUnseenMentionId = null;
+    const lastSeenIndex = messages.findIndex((msg) => msg.id === lastSeenMessageId);
+    const checkMessages =
+      lastSeenIndex === -1 ? messages : messages.slice(lastSeenIndex + 1);
 
-  const lastSeenIndex = messages.findIndex(msg => msg.id === lastSeenMessageId);
-  if (lastSeenIndex === -1) {
-    // If not found, start from beginning
-    for (let i = messages.length - 1; i >= 0; i--) {
-      const msg = messages[i];
-      if (
-        msg.msg.includes(`@${userDetails.name}`) &&
+    const unseenMentions = checkMessages.filter(
+      (msg) =>
+        (msg.msg?.includes(`@${userDetails.name}`) ||
+          msg.replyTo?.name === userDetails.name) &&
         msg.senderId !== userDetails.email
-      ) {
-        latestUnseenMentionId = msg.id;
-        foundUnseenMention = true;
-        break;
-      }
+    );
+
+    setMentionQueue(unseenMentions);
+    setMentionIndex(0);
+  }, [messages, userDetails, lastSeenMessageId]);
+
+  const updateLastSeen = async (messageId) => {
+    if (!userDetails || !title || !messageId) return;
+
+    const seenDocRef = doc(
+      db,
+      "UserDetails",
+      userDetails.id,
+      "chatLastSeen",
+      title
+    );
+
+    await setDoc(seenDocRef, { lastSeenId: messageId }, { merge: true });
+    setLastSeenMessageId(messageId);
+  };
+
+  useEffect(() => {
+  const handleFocus = () => {
+    const lastMsg = messages[messages.length - 1];
+    if (lastMsg && lastMsg.id !== lastSeenMessageId) {
+      updateLastSeen(lastMsg.id);
     }
-  } else {
-    // Check messages after last seen
-    for (let i = lastSeenIndex + 1; i < messages.length; i++) {
-      const msg = messages[i];
-      if (
-        msg.msg.includes(`@${userDetails.name}`) &&
-        msg.senderId !== userDetails.email
-      ) {
-        latestUnseenMentionId = msg.id;
-        foundUnseenMention = true;
-        break;
-      }
-    }
-  }
+  };
 
-  setMentionAlert(latestUnseenMentionId);
-  setShowMentionAlert(foundUnseenMention);
-}, [messages, userDetails, lastSeenMessageId]);
-
-
-
-
-
+  window.addEventListener("focus", handleFocus);
+  return () => window.removeEventListener("focus", handleFocus);
+}, [messages, lastSeenMessageId]);
 
 
 
@@ -304,15 +321,11 @@ const [showMentionAlert, setShowMentionAlert] = useState(false);
         <div className="chat-messages" ref={chatBoxRef}>
           {messages.map((msg) => (
             <div
-  key={msg.id}
-  id={`msg-${msg.id}`} // keep the id for reference
-  ref={msg.id === lastSeenMessageId ? lastSeenRef : null}
-
-  className={`chat-bubble ${msg.senderId === userDetails?.email ? "me" : "other"}`}
-  onClick={() => setReplyTo(msg)}
->
-
-
+              key={msg.id}
+              id={`msg-${msg.id}`}
+              ref={msg.id === lastSeenMessageId ? lastSeenRef : null}
+              className={`chat-bubble ${msg.senderId === userDetails?.email ? "me" : "other"}`}
+            >
               {msg.replyTo && (
                 <div className="reply-reference">
                   <strong>{msg.replyTo.name}</strong>: {msg.replyTo.msg}
@@ -322,13 +335,13 @@ const [showMentionAlert, setShowMentionAlert] = useState(false);
               <div
                 className="chat-text"
                 dangerouslySetInnerHTML={{
-                   __html: msg.msg.replace(
-      /@([A-Za-z]+(?:\s[A-Za-z]+)?)/g,
-      '<span class="mention">@$1</span>'
+                  __html: msg.msg.replace(
+                    /@([A-Za-z]+(?:\s[A-Za-z]+)?)/g,
+                    '<span class="mention">@$1</span>'
                   ),
                 }}
               />
-              <div className="time-dlt">
+              <div className="time-dlt-rep">
                 {msg.senderId === userDetails?.email && (
                   <FaTrash
                     className="delete-btn"
@@ -346,6 +359,9 @@ const [showMentionAlert, setShowMentionAlert] = useState(false);
                     })}
                   </div>
                 )}
+                {msg.senderId !== userDetails?.email ?
+                  <FaReply className="reply-btn" onClick={() => setReplyTo(msg)}/> : ""
+                }
               </div>
             </div>
           ))}
@@ -355,32 +371,35 @@ const [showMentionAlert, setShowMentionAlert] = useState(false);
         {replyTo && (
           <div className="reply-preview">
             Replying to <strong>{replyTo.name}</strong>: “{replyTo.msg}”
-            <span
-              className="cancel-reply"
+            <FaTimes className="cancel-reply"
               onClick={() => setReplyTo(null)}
-              title="Cancel reply"
-            >
-              ✖
-            </span>
+              title="Cancel reply" />
           </div>
         )}
 
-        {showMentionAlert && mentionMessageId && (
-  <button
-    className="mention-alert-btn"
-    onClick={() => {
-      const el = document.getElementById(`msg-${mentionMessageId}`);
-      if (el) {
-        el.scrollIntoView({ behavior: "smooth", block: "center" });
-        setShowMentionAlert(false);
-        setMentionMessageId(null);
-      }
-    }}
-  >
-    @
-  </button>
-)}
+        {mentionQueue.length > 0 && mentionIndex < mentionQueue.length && (
+          <button
+            className="mention-alert-btn"
+            onClick={() => {
+              const currentMentionId = mentionQueue[mentionIndex]?.id;
+              const el = document.getElementById(`msg-${currentMentionId}`);
+              if (el) {
+                el.scrollIntoView({ behavior: "smooth", block: "center" });
+                updateLastSeen(currentMentionId); // 🟢 Mark mention as seen
+              }
 
+              if (mentionIndex + 1 < mentionQueue.length) {
+                setMentionIndex(mentionIndex + 1);
+              } else {
+                setMentionQueue([]);
+                setMentionIndex(0);
+              }
+            }}
+
+          >
+            @{mentionQueue.length - mentionIndex}
+          </button>
+        )}
 
 
         <div className="chat-input-container" style={{ position: "relative" }}>

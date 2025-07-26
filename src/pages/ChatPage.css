@@ -46,12 +46,14 @@
   flex-direction: column;
   gap: 12px;
   scroll-behavior: smooth;
+  margin-top: 5px;
+  margin-bottom: 5px;
 }
 
 .chat-bubble {
   max-width: 70%;
   padding: 10px 15px;
-  border-radius: 12px;
+  border-radius: 20px;
   word-wrap: break-word;
   position: relative;
 }
@@ -60,14 +62,14 @@
   background-color: #007bff;
   color: white;
   align-self: flex-end;
-  border-bottom-right-radius: 0;
+  border-top-right-radius: 0;
 }
 
 .chat-bubble.other {
   background-color: #e0e0e0;
   color: #333;
   align-self: flex-start;
-  border-bottom-left-radius: 0;
+  border-top-left-radius: 0;
 }
 
 .chat-name {
@@ -171,15 +173,20 @@
 .cancel-reply {
   float: right;
   cursor: pointer;
-  color: red;
+  color: #555;
   font-weight: bold;
 }
 
+.cancel-reply:hover{
+  color: red;
+}
+
 .reply-reference {
-  background-color: #5cabff;
+  background-color: #ffffffc6;
+  color: #555;
   padding: 4px 8px;
   font-size: 0.85rem;
-  border-left: 3px solid #ffffff;
+  border-left: 3px solid #5cabff;
   margin-bottom: 6px;
   border-radius: 6px;
 }
@@ -192,9 +199,8 @@
 .delete-btn {
   background: none;
   border: none;
-  color: #5cabff;
+  color: #5cabffa4;
   font-size: 1rem;
-  margin-top: 5px;
   cursor: pointer;
   float: right;
 }
@@ -203,10 +209,23 @@
   color: white;
 }
 
-.time-dlt{
+.reply-btn{
+  background: none;
+  border: none;
+  color: #999;
+  font-size: 1rem;
+  cursor: pointer;
+  float: right;
+}
+
+.reply-btn:hover{
+  color: #222;
+}
+
+.time-dlt-rep{
   display: flex;
   justify-content: space-between;
-  margin-top: 10px;
+  margin-top: 15px;
 }
 
 .chat-input-container {
@@ -243,14 +262,15 @@
 
 .mention-alert-btn {
   position: fixed;
-  bottom: 90px;
-  right: 50px;
+  bottom: 10%;
+  right: 25%;
+  padding: 5px;
   background: #007bff;
   color: white;
   border: none;
   border-radius: 50%;
-  width: 48px;
-  height: 48px;
+  width: 55px;
+  height: 55px;
   font-size: 24px;
   font-weight: bold;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
