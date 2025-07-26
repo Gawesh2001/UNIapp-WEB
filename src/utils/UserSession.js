@@ -1,7 +1,11 @@
 class UserSession {
   constructor() {
-    const savedUser = JSON.parse(localStorage.getItem("userSession")) || {};
+    this.listeners = new Set();
+    this.loadFromStorage();
+  }
 
+  loadFromStorage() {
+    const savedUser = JSON.parse(localStorage.getItem("userSession")) || {};
     this.batchNumber = savedUser.batchNumber || "";
     this.degreeProgram = savedUser.degreeProgram || "";
     this.email = savedUser.email || "";
@@ -9,6 +13,7 @@ class UserSession {
     this.name = savedUser.name || "";
     this.role = savedUser.role || "";
     this.uid = savedUser.uid || "";
+    this.notifyListeners();
   }
 
   setUser(details) {
@@ -19,9 +24,8 @@ class UserSession {
     this.name = details.name || "";
     this.role = details.role || "";
     this.uid = details.uid || "";
-
-    // Save to localStorage
     localStorage.setItem("userSession", JSON.stringify(this.currentUser));
+    this.notifyListeners();
   }
 
   clearUser() {
@@ -32,8 +36,8 @@ class UserSession {
     this.name = "";
     this.role = "";
     this.uid = "";
-
     localStorage.removeItem("userSession");
+    this.notifyListeners();
   }
 
   get currentUser() {
@@ -47,8 +51,16 @@ class UserSession {
       uid: this.uid
     };
   }
+
+  subscribe(listener) {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+
+  notifyListeners() {
+    this.listeners.forEach(listener => listener(this.currentUser));
+  }
 }
 
-// Singleton instance
 const userSession = new UserSession();
 export default userSession;
