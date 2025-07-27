@@ -14,28 +14,21 @@ import {
   query,
   where,
 } from "firebase/firestore";
-<<<<<<< HEAD
-import { FaChevronCircleLeft, FaTrash, FaReply, FaTimes } from "react-icons/fa";
-import { useNavigate } from "react-router-dom";
-import { nanoid } from "nanoid";
-import VoteMessage from "../components/VoteMessage";
-=======
 import { FaChevronCircleLeft, FaTrash, FaReply, FaTimes, FaImage } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { nanoid } from "nanoid";
+import VoteMessage from "../components/VoteMessage";
 import { Cloudinary } from "@cloudinary/url-gen";
 import { AdvancedImage } from '@cloudinary/react';
 
 const cld = new Cloudinary({
   cloud: {
     cloudName: process.env.REACT_APP_CLOUDINARY_CLOUD_NAME || 'dfnzttf4v'
-   // cloudName: process.env.REACT_APP_CLOUDINARY_CLOUD_NAME
   },
   url: {
     secure: true
   }
 });
->>>>>>> f93345c3a5e351a3b9dd6bc90f9417265af6b545
 
 const ChatGroup = ({ chatPath, title, userFilter }) => {
   const navigate = useNavigate();
@@ -52,19 +45,17 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
   const [mentionQuery, setMentionQuery] = useState("");
   const [showMentionList, setShowMentionList] = useState(false);
   const [mentionSuggestions, setMentionSuggestions] = useState([]);
+  const [mentionAlert, setMentionAlert] = useState(null);
   const isAtBottomRef = useRef(true);
   const [mentionQueue, setMentionQueue] = useState([]);
   const [mentionIndex, setMentionIndex] = useState(0);
-<<<<<<< HEAD
   const [showVoteForm, setShowVoteForm] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
-=======
   const [imageToUpload, setImageToUpload] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef(null);
   const [selectedImage, setSelectedImage] = useState(null);
->>>>>>> f93345c3a5e351a3b9dd6bc90f9417265af6b545
 
   useEffect(() => {
     const user = UserSession.currentUser;
@@ -99,13 +90,14 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
           msg.senderId !== userDetails.email
       );
       if (latestMention && !isAtBottomRef.current) {
-        setMentionQueue(prev => [...prev, latestMention.id]);
+        setMentionAlert(latestMention.id);
       }
     });
 
     return () => unsubscribe();
   }, [userDetails, chatPath]);
 
+  // Load lastSeenMessageId from user's subcollection
   useEffect(() => {
     if (!userDetails || !title) return;
 
@@ -169,92 +161,41 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
     }
   }, [lastSeenMessageId]);
 
-  // const uploadImage = async () => {
-  //   if (!imageToUpload) return null;
-
-  //   const cloudName = process.env.REACT_APP_CLOUDINARY_CLOUD_NAME || 'dfnzttf4v';
-  //   const uploadPreset = process.env.REACT_APP_CLOUDINARY_UPLOAD_PRESET || 'uniapp';
-
-  //   const formData = new FormData();
-  //   formData.append('file', imageToUpload);
-  //   formData.append('upload_preset', uploadPreset);
-
-  //   try {
-  //     setIsUploading(true);
-  //     setUploadProgress(0);
-      
-  //     const xhr = new XMLHttpRequest();
-  //     xhr.open('POST', `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, true);
-      
-  //     xhr.upload.onprogress = (e) => {
-  //       if (e.lengthComputable) {
-  //         const progress = Math.round((e.loaded / e.total) * 100);
-  //         setUploadProgress(progress);
-  //       }
-  //     };
-
-  //     return new Promise((resolve, reject) => {
-  //       xhr.onload = () => {
-  //         if (xhr.status === 200) {
-  //           const response = JSON.parse(xhr.responseText);
-  //           resolve(response.secure_url);
-  //         } else {
-  //           reject(new Error('Upload failed'));
-  //         }
-  //         setIsUploading(false);
-  //       };
-
-  //       xhr.onerror = () => {
-  //         reject(new Error('Upload failed'));
-  //         setIsUploading(false);
-  //       };
-
-  //       xhr.send(formData);
-  //     });
-  //   } catch (error) {
-  //     console.error('Error uploading image:', error);
-  //     alert(`Image upload failed: ${error.message}`);
-  //     setIsUploading(false);
-  //     return null;
-  //   }
-  // };
-
-
   const uploadImage = async () => {
-  if (!imageToUpload) return null;
+    if (!imageToUpload) return null;
 
-  const cloudName = process.env.REACT_APP_CLOUDINARY_CLOUD_NAME || 'dfnzttf4v';
-  const uploadPreset = process.env.REACT_APP_CLOUDINARY_UPLOAD_PRESET || 'uniapp';
+    const cloudName = process.env.REACT_APP_CLOUDINARY_CLOUD_NAME || 'dfnzttf4v';
+    const uploadPreset = process.env.REACT_APP_CLOUDINARY_UPLOAD_PRESET || 'uniapp';
 
-  const formData = new FormData();
-  formData.append('file', imageToUpload);
-  formData.append('upload_preset', uploadPreset);
+    const formData = new FormData();
+    formData.append('file', imageToUpload);
+    formData.append('upload_preset', uploadPreset);
 
-  try {
-    setIsUploading(true);
-    setUploadProgress(0);
+    try {
+      setIsUploading(true);
+      setUploadProgress(0);
 
-    const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
-      method: 'POST',
-      body: formData
-    });
+      const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+        method: 'POST',
+        body: formData
+      });
 
-    const result = await response.json();
-    setIsUploading(false);
+      const result = await response.json();
+      setIsUploading(false);
 
-    if (!response.ok) {
-      throw new Error(result.error?.message || "Upload failed");
+      if (!response.ok) {
+        throw new Error(result.error?.message || "Upload failed");
+      }
+
+      // Return the URL with proper transformations to ensure it's accessible
+      return `https://res.cloudinary.com/${cloudName}/image/upload/${result.public_id}.${result.format}`;
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      alert(`Image upload failed: ${error.message}`);
+      setIsUploading(false);
+      return null;
     }
-
-    return result.secure_url;
-  } catch (error) {
-    console.error('Error uploading image:', error);
-    alert(`Image upload failed: ${error.message}`);
-    setIsUploading(false);
-    return null;
-  }
-};
-
+  };
 
   const sendMessage = async () => {
     if (!newMessage.trim() && !imageToUpload) return;
@@ -267,7 +208,10 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
 
     const chatRef = collection(db, ...chatPath);
     const newMsg = newMessage.trim();
-    
+    setNewMessage("");
+    setReplyTo(null);
+    setImageToUpload(null);
+
     const groupId = chatPath.join("_");
     const customId = `${groupId
       .split(" ")
@@ -275,45 +219,30 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
       .join("")
       .toUpperCase()}_${nanoid(8)}`;
 
-    try {
-      await setDoc(doc(chatRef, customId), {
-        msg: newMsg,
-        name: userDetails.name,
-        senderId: userDetails.email,
-        time: serverTimestamp(),
-        replyTo: replyTo ? { name: replyTo.name, msg: replyTo.msg } : null,
-        imageUrl: imageUrl || null
-      });
+    const docRef = doc(chatRef, customId);
+    await setDoc(docRef, {
+      msg: newMsg,
+      name: userDetails.name,
+      senderId: userDetails.email,
+      time: serverTimestamp(),
+      replyTo: replyTo ? { name: replyTo.name, msg: replyTo.msg } : null,
+      imageUrl: imageUrl || null
+    });
 
-      setNewMessage("");
-      setReplyTo(null);
-      setImageToUpload(null);
-      setUploadProgress(0);
-
-      const seenDocRef = doc(
-        db,
-        "UserDetails",
-        userDetails.id,
-        "chatLastSeen",
-        title
-      );
-      await setDoc(seenDocRef, { lastSeenId: customId }, { merge: true });
-    } catch (error) {
-      console.error("Error sending message:", error);
-      alert("Failed to send message. Please try again.");
-    }
+    // Save last seen message in user's chatLastSeen subcollection
+    const seenDocRef = doc(
+      db,
+      "UserDetails",
+      userDetails.id,
+      "chatLastSeen",
+      title
+    );
+    await setDoc(seenDocRef, { lastSeenId: customId }, { merge: true });
   };
 
   const deleteMessage = async (id) => {
-    if (window.confirm("Are you sure you want to delete this message?")) {
-      try {
-        const messageRef = doc(db, ...chatPath, id);
-        await deleteDoc(messageRef);
-      } catch (error) {
-        console.error("Error deleting message:", error);
-        alert("Failed to delete message.");
-      }
-    }
+    const messageRef = doc(db, ...chatPath, id);
+    await deleteDoc(messageRef);
   };
 
   const handleDeleteConfirmed = async (id) => {
@@ -446,46 +375,44 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
     return () => window.removeEventListener("focus", handleFocus);
   }, [messages, lastSeenMessageId]);
 
-<<<<<<< HEAD
-  // Updated handleVote to support single or multiple votes based on msg.allowMultiple
-const handleVote = async (messageId, optionIndex) => {
-  const messageRef = doc(db, ...chatPath, messageId);
-  const messageSnap = await getDoc(messageRef);
-  if (!messageSnap.exists()) return;
+  const handleVote = async (messageId, optionIndex) => {
+    const messageRef = doc(db, ...chatPath, messageId);
+    const messageSnap = await getDoc(messageRef);
+    if (!messageSnap.exists()) return;
 
-  const data = messageSnap.data();
-  const currentVotes = data.votes || {};
-  const allowMultiple = data.allowMultiple || false;
+    const data = messageSnap.data();
+    const currentVotes = data.votes || {};
+    const allowMultiple = data.allowMultiple || false;
 
-  const userVote = currentVotes[userDetails.id] || (allowMultiple ? [] : null);
+    const userVote = currentVotes[userDetails.id] || (allowMultiple ? [] : null);
 
-  let updatedUserVote;
+    let updatedUserVote;
 
-  if (allowMultiple) {
-    // Multiple options allowed: add/remove optionIndex in array
-    if (userVote.includes(optionIndex)) {
-      updatedUserVote = userVote.filter(i => i !== optionIndex);
+    if (allowMultiple) {
+      // Multiple options allowed: add/remove optionIndex in array
+      if (userVote.includes(optionIndex)) {
+        updatedUserVote = userVote.filter(i => i !== optionIndex);
+      } else {
+        updatedUserVote = [...userVote, optionIndex];
+      }
     } else {
-      updatedUserVote = [...userVote, optionIndex];
+      // Single option allowed: toggle optionIndex or set to optionIndex
+      if (userVote === optionIndex) {
+        // Clicking selected option again removes vote (optional)
+        updatedUserVote = null;
+      } else {
+        updatedUserVote = optionIndex;
+      }
     }
-  } else {
-    // Single option allowed: toggle optionIndex or set to optionIndex
-    if (userVote === optionIndex) {
-      // Clicking selected option again removes vote (optional)
-      updatedUserVote = null;
-    } else {
-      updatedUserVote = optionIndex;
-    }
-  }
 
-  const updatedVotes = {
-    ...currentVotes,
-    [userDetails.id]: updatedUserVote,
+    const updatedVotes = {
+      ...currentVotes,
+      [userDetails.id]: updatedUserVote,
+    };
+
+    await setDoc(messageRef, { votes: updatedVotes }, { merge: true });
   };
 
-  await setDoc(messageRef, { votes: updatedVotes }, { merge: true });
-};
-=======
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -537,7 +464,6 @@ const handleVote = async (messageId, optionIndex) => {
       </div>
     );
   };
->>>>>>> f93345c3a5e351a3b9dd6bc90f9417265af6b545
 
   const openImageModal = (imageUrl) => {
     setSelectedImage(imageUrl);
@@ -549,7 +475,9 @@ const handleVote = async (messageId, optionIndex) => {
 
   const renderMessageContent = (msg) => {
     if (msg.imageUrl) {
-      const image = cld.image(msg.imageUrl);
+      // Create a Cloudinary image instance with proper transformations
+      const image = cld.image(msg.imageUrl.replace('https://res.cloudinary.com/dfnzttf4v/image/upload/', ''));
+      
       return (
         <div className="message-image-container">
           <AdvancedImage 
@@ -569,6 +497,48 @@ const handleVote = async (messageId, optionIndex) => {
               }}
             />
           )}
+        </div>
+      );
+    }
+    
+    if (msg.type === "vote") {
+      return (
+        <div className="vote-block">
+          <strong>{msg.question}</strong>
+          {msg.options.map((opt, idx) => {
+            const voteCount = Object.values(msg.votes || {}).filter((userVotes) => {
+              if (msg.allowMultiple) {
+                return Array.isArray(userVotes) && userVotes.includes(idx);
+              } else {
+                return userVotes === idx;
+              }
+            }).length;
+
+            const totalVotes = Object.keys(msg.votes || {}).length;
+            const percent = totalVotes > 0 ? Math.round((voteCount / totalVotes) * 100) : 0;
+
+            const userVotes = msg.votes?.[userDetails.id];
+            const isChecked = msg.allowMultiple
+              ? Array.isArray(userVotes) && userVotes.includes(idx)
+              : userVotes === idx;
+
+            return (
+              <label key={idx} className="vote-option-label">
+                <input
+                  type={msg.allowMultiple ? "checkbox" : "radio"}
+                  name={`vote-${msg.id}`}
+                  checked={isChecked || false}
+                  onChange={() => handleVote(msg.id, idx)}
+                />
+                {opt}
+                {totalVotes > 0 && (
+                  <span className="vote-percent">
+                    {voteCount} vote{voteCount !== 1 ? "s" : ""}
+                  </span>
+                )}
+              </label>
+            );
+          })}
         </div>
       );
     }
@@ -603,81 +573,20 @@ const handleVote = async (messageId, optionIndex) => {
               key={msg.id}
               id={`msg-${msg.id}`}
               ref={msg.id === lastSeenMessageId ? lastSeenRef : null}
-              className={`chat-bubble ${
-                msg.senderId === userDetails?.email ? "me" : "other"
-              }`}
+              className={`chat-bubble ${msg.senderId === userDetails?.email ? "me" : "other"}`}
             >
               <div className="chat-name">{msg.name}</div>
-<<<<<<< HEAD
 
-              {msg.type === "vote" ? (
-  <div className="vote-block">
-    <strong>{msg.question}</strong>
-    {msg.options.map((opt, idx) => {
-      // Count votes for this option:
-      const voteCount = Object.values(msg.votes || {}).filter((userVotes) => {
-        if (msg.allowMultiple) {
-          return Array.isArray(userVotes) && userVotes.includes(idx);
-        } else {
-          return userVotes === idx;
-        }
-      }).length;
-
-      const totalVotes = Object.keys(msg.votes || {}).length;
-      const percent = totalVotes > 0 ? Math.round((voteCount / totalVotes) * 100) : 0;
-
-      const userVotes = msg.votes?.[userDetails.id];
-      const isChecked = msg.allowMultiple
-        ? Array.isArray(userVotes) && userVotes.includes(idx)
-        : userVotes === idx;
-
-      return (
-        <label key={idx} className="vote-option-label">
-          <input
-            type={msg.allowMultiple ? "checkbox" : "radio"}
-            name={`vote-${msg.id}`} // radio buttons share the same name to allow only one selection
-            checked={isChecked || false}
-            onChange={() => handleVote(msg.id, idx)}
-          />
-          {opt}
-          {totalVotes > 0 && (
-            <span className="vote-percent">
-              {voteCount} vote{voteCount !== 1 ? "s" : ""}
-            </span>
-          )}
-        </label>
-      );
-    })}
-  </div>
-) : (
-  <>
-    {msg.replyTo && (
-      <div className="reply-reference">
-        <strong>{msg.replyTo.name}</strong>: {msg.replyTo.msg}
-      </div>
-    )}
-
-    {msg.msg ? (
-      <div
-        className="chat-text"
-        dangerouslySetInnerHTML={{
-          __html: msg.msg.replace(
-            /@([A-Za-z]+(?:\s[A-Za-z]+)?)/g,
-            '<span class="mention">@$1</span>'
-          ),
-        }}
-      />
-    ) : (
-      <div className="chat-text empty-message" />
-    )}
-  </>
-)}
-
+              {msg.replyTo && (
+                <div className="reply-reference">
+                  <strong>{msg.replyTo.name}</strong>: {msg.replyTo.msg}
+                </div>
+              )}
+              
+              {renderMessageContent(msg)}
 
               <div
-                className={`time-dlt-rep ${
-                  msg.senderId === userDetails?.email ? "align-left" : "align-right"
-                }`}
+                className={`time-dlt-rep ${msg.senderId === userDetails?.email ? "align-left" : "align-right"}`}
               >
                 <div className="action-icons">
                   {msg.senderId === userDetails?.email && (
@@ -695,19 +604,6 @@ const handleVote = async (messageId, optionIndex) => {
                   <FaReply className="reply-btn" onClick={() => setReplyTo(msg)} />
                 </div>
 
-=======
-              {renderMessageContent(msg)}
-              <div className="time-dlt-rep">
-                {msg.senderId === userDetails?.email && (
-                  <FaTrash
-                    className="delete-btn"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      deleteMessage(msg.id);
-                    }}
-                  />
-                )}
->>>>>>> f93345c3a5e351a3b9dd6bc90f9417265af6b545
                 {msg.time && (
                   <div className="chat-time">
                     {msg.time.toLocaleTimeString([], {
@@ -732,14 +628,9 @@ const handleVote = async (messageId, optionIndex) => {
 
         {replyTo && (
           <div className="reply-preview">
-<<<<<<< HEAD
-            Replying to <strong>{replyTo.name}</strong>: “{replyTo.msg}”
+            Replying to <strong>{replyTo.name}</strong>: "{replyTo.msg}"
             <FaTimes
               className="cancel-reply"
-=======
-            Replying to <strong>{replyTo.name}</strong>: "{replyTo.msg}"
-            <FaTimes className="cancel-reply"
->>>>>>> f93345c3a5e351a3b9dd6bc90f9417265af6b545
               onClick={() => setReplyTo(null)}
               title="Cancel reply"
             />
@@ -769,11 +660,8 @@ const handleVote = async (messageId, optionIndex) => {
           </button>
         )}
 
-<<<<<<< HEAD
-=======
         {renderImagePreview()}
 
->>>>>>> f93345c3a5e351a3b9dd6bc90f9417265af6b545
         <div className="chat-input-container" style={{ position: "relative" }}>
           <input
             type="file"
@@ -801,21 +689,19 @@ const handleVote = async (messageId, optionIndex) => {
             onKeyDown={(e) => e.key === "Enter" && sendMessage()}
             disabled={isUploading}
           />
-<<<<<<< HEAD
-          <button className="vote-button" onClick={() => setShowVoteForm(true)}>
+          <button 
+            className="vote-button" 
+            onClick={() => setShowVoteForm(true)}
+            disabled={isUploading}
+          >
             📊
           </button>
-
-          <button className="send-button" onClick={sendMessage}>
-            Send
-=======
           <button 
             className="send-button" 
             onClick={sendMessage}
             disabled={isUploading}
           >
             {isUploading ? 'Sending...' : 'Send'}
->>>>>>> f93345c3a5e351a3b9dd6bc90f9417265af6b545
           </button>
 
           {showMentionList && mentionSuggestions.length > 0 && (
@@ -840,7 +726,6 @@ const handleVote = async (messageId, optionIndex) => {
           )}
         </div>
       </div>
-
       <div className="chat-sidebar">
         <h3>Members of {title ? title : "Loading..."}</h3>
         <ul>
@@ -858,7 +743,7 @@ const handleVote = async (messageId, optionIndex) => {
           ))}
         </ul>
       </div>
-<<<<<<< HEAD
+
       {confirmDeleteId && (
         <div className="modal-overlay" onClick={() => setConfirmDeleteId(null)}>
           <div
@@ -880,20 +765,21 @@ const handleVote = async (messageId, optionIndex) => {
                 Cancel
               </button>
             </div>
-=======
+          </div>
+        </div>
+      )}
 
       {selectedImage && (
         <div className="image-modal" onClick={closeImageModal}>
           <div className="image-modal-content" onClick={e => e.stopPropagation()}>
             <AdvancedImage 
-              cldImg={cld.image(selectedImage)} 
+              cldImg={cld.image(selectedImage.replace('https://res.cloudinary.com/dfnzttf4v/image/upload/', ''))} 
               className="modal-image"
               alt="Full size content"
             />
             <button className="image-modal-close" onClick={closeImageModal}>
               <FaTimes />
             </button>
->>>>>>> f93345c3a5e351a3b9dd6bc90f9417265af6b545
           </div>
         </div>
       )}

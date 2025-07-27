@@ -199,8 +199,6 @@
   font-weight: bold;
 }
 
-<<<<<<< HEAD
-=======
 .delete-btn {
   background: none;
   border: none;
@@ -227,7 +225,7 @@
   color: #222;
 }
 
->>>>>>> f93345c3a5e351a3b9dd6bc90f9417265af6b545
+
 .time-dlt-rep {
   display: flex;
   justify-content: space-between;
@@ -235,7 +233,6 @@
   align-items: center;
 }
 
-<<<<<<< HEAD
 .align-left {
   flex-direction: row-reverse; /* puts time on right, icons on left */
 }
@@ -286,8 +283,6 @@
   position: relative; /* container must be relative */
 }
 
-=======
->>>>>>> f93345c3a5e351a3b9dd6bc90f9417265af6b545
 .mention-suggestions {
   position: absolute;
   bottom: 70px;
@@ -339,7 +334,7 @@
   transform: scale(1.1);
 }
 
-<<<<<<< HEAD
+
 .vote-button{
   background-color: white;
   border-width: 1px;
@@ -413,7 +408,8 @@
   position: fixed;
   inset: 0; /* shorthand for top:0; right:0; bottom:0; left:0; */
   background: rgba(0, 0, 0, 0.45);
-=======
+}
+
 .image-preview-container {
   position: relative;
   margin: 10px 20px;
@@ -530,12 +526,12 @@
   width: 100%;
   height: 100%;
   background: rgba(0, 0, 0, 0.8);
->>>>>>> f93345c3a5e351a3b9dd6bc90f9417265af6b545
+
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
-<<<<<<< HEAD
+
   backdrop-filter: blur(1px);
   animation: fadeIn 0.2s ease forwards;
 }
@@ -618,8 +614,8 @@
   }
 }
 
-=======
-}
+
+
 
 .image-modal-content {
   max-width: 90%;
@@ -653,4 +649,10 @@
 .image-modal-close:hover {
   background: rgba(0,0,0,0.8);
 }
->>>>>>> f93345c3a5e351a3b9dd6bc90f9417265af6b545
+
+.chat-media {
+  max-width: 250px;
+  max-height: 200px;
+  border-radius: 8px;
+  margin-top: 5px;
+}
