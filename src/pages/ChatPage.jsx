@@ -14,9 +14,10 @@ import {
   query,
   where,
 } from "firebase/firestore";
-import { FaChevronCircleLeft, FaTrash, FaReply, FaTimes} from "react-icons/fa";
+import { FaChevronCircleLeft, FaTrash, FaReply, FaTimes } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { nanoid } from "nanoid";
+import VoteMessage from "../components/VoteMessage";
 
 const ChatGroup = ({ chatPath, title, userFilter }) => {
   const navigate = useNavigate();
@@ -38,7 +39,8 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
 
   const [mentionQueue, setMentionQueue] = useState([]);
   const [mentionIndex, setMentionIndex] = useState(0);
-
+  const [showVoteForm, setShowVoteForm] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
 
   useEffect(() => {
     const user = UserSession.currentUser;
@@ -134,7 +136,6 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
     return () => chatBox.removeEventListener("scroll", handleScroll);
   }, [messages, lastSeenMessageId]);
 
-
   useEffect(() => {
     if (lastSeenRef.current) {
       lastSeenRef.current.scrollIntoView({ behavior: "auto", block: "start" });
@@ -150,8 +151,9 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
     setReplyTo(null);
 
     const groupId = chatPath.join("_");
-    const customId = `${groupId.split(" ")
-      .map(word => word[0])
+    const customId = `${groupId
+      .split(" ")
+      .map((word) => word[0])
       .join("")
       .toUpperCase()}_${nanoid(8)}`;
 
@@ -177,6 +179,12 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
 
   const deleteMessage = async (id) => {
     const messageRef = doc(db, ...chatPath, id);
+    await deleteDoc(messageRef);
+  };
+
+  const handleDeleteConfirmed = async (id) => {
+    const messageRef = doc(db, ...chatPath, id);
+    setConfirmDeleteId(null);
     await deleteDoc(messageRef);
   };
 
@@ -293,17 +301,55 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
   };
 
   useEffect(() => {
-  const handleFocus = () => {
-    const lastMsg = messages[messages.length - 1];
-    if (lastMsg && lastMsg.id !== lastSeenMessageId) {
-      updateLastSeen(lastMsg.id);
+    const handleFocus = () => {
+      const lastMsg = messages[messages.length - 1];
+      if (lastMsg && lastMsg.id !== lastSeenMessageId) {
+        updateLastSeen(lastMsg.id);
+      }
+    };
+
+    window.addEventListener("focus", handleFocus);
+    return () => window.removeEventListener("focus", handleFocus);
+  }, [messages, lastSeenMessageId]);
+
+  // Updated handleVote to support single or multiple votes based on msg.allowMultiple
+const handleVote = async (messageId, optionIndex) => {
+  const messageRef = doc(db, ...chatPath, messageId);
+  const messageSnap = await getDoc(messageRef);
+  if (!messageSnap.exists()) return;
+
+  const data = messageSnap.data();
+  const currentVotes = data.votes || {};
+  const allowMultiple = data.allowMultiple || false;
+
+  const userVote = currentVotes[userDetails.id] || (allowMultiple ? [] : null);
+
+  let updatedUserVote;
+
+  if (allowMultiple) {
+    // Multiple options allowed: add/remove optionIndex in array
+    if (userVote.includes(optionIndex)) {
+      updatedUserVote = userVote.filter(i => i !== optionIndex);
+    } else {
+      updatedUserVote = [...userVote, optionIndex];
     }
+  } else {
+    // Single option allowed: toggle optionIndex or set to optionIndex
+    if (userVote === optionIndex) {
+      // Clicking selected option again removes vote (optional)
+      updatedUserVote = null;
+    } else {
+      updatedUserVote = optionIndex;
+    }
+  }
+
+  const updatedVotes = {
+    ...currentVotes,
+    [userDetails.id]: updatedUserVote,
   };
 
-  window.addEventListener("focus", handleFocus);
-  return () => window.removeEventListener("focus", handleFocus);
-}, [messages, lastSeenMessageId]);
-
+  await setDoc(messageRef, { votes: updatedVotes }, { merge: true });
+};
 
 
 
@@ -324,33 +370,97 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
               key={msg.id}
               id={`msg-${msg.id}`}
               ref={msg.id === lastSeenMessageId ? lastSeenRef : null}
-              className={`chat-bubble ${msg.senderId === userDetails?.email ? "me" : "other"}`}
+              className={`chat-bubble ${
+                msg.senderId === userDetails?.email ? "me" : "other"
+              }`}
             >
-              {msg.replyTo && (
-                <div className="reply-reference">
-                  <strong>{msg.replyTo.name}</strong>: {msg.replyTo.msg}
-                </div>
-              )}
               <div className="chat-name">{msg.name}</div>
+
+              {msg.type === "vote" ? (
+  <div className="vote-block">
+    <strong>{msg.question}</strong>
+    {msg.options.map((opt, idx) => {
+      // Count votes for this option:
+      const voteCount = Object.values(msg.votes || {}).filter((userVotes) => {
+        if (msg.allowMultiple) {
+          return Array.isArray(userVotes) && userVotes.includes(idx);
+        } else {
+          return userVotes === idx;
+        }
+      }).length;
+
+      const totalVotes = Object.keys(msg.votes || {}).length;
+      const percent = totalVotes > 0 ? Math.round((voteCount / totalVotes) * 100) : 0;
+
+      const userVotes = msg.votes?.[userDetails.id];
+      const isChecked = msg.allowMultiple
+        ? Array.isArray(userVotes) && userVotes.includes(idx)
+        : userVotes === idx;
+
+      return (
+        <label key={idx} className="vote-option-label">
+          <input
+            type={msg.allowMultiple ? "checkbox" : "radio"}
+            name={`vote-${msg.id}`} // radio buttons share the same name to allow only one selection
+            checked={isChecked || false}
+            onChange={() => handleVote(msg.id, idx)}
+          />
+          {opt}
+          {totalVotes > 0 && (
+            <span className="vote-percent">
+              {voteCount} vote{voteCount !== 1 ? "s" : ""}
+            </span>
+          )}
+        </label>
+      );
+    })}
+  </div>
+) : (
+  <>
+    {msg.replyTo && (
+      <div className="reply-reference">
+        <strong>{msg.replyTo.name}</strong>: {msg.replyTo.msg}
+      </div>
+    )}
+
+    {msg.msg ? (
+      <div
+        className="chat-text"
+        dangerouslySetInnerHTML={{
+          __html: msg.msg.replace(
+            /@([A-Za-z]+(?:\s[A-Za-z]+)?)/g,
+            '<span class="mention">@$1</span>'
+          ),
+        }}
+      />
+    ) : (
+      <div className="chat-text empty-message" />
+    )}
+  </>
+)}
+
+
               <div
-                className="chat-text"
-                dangerouslySetInnerHTML={{
-                  __html: msg.msg.replace(
-                    /@([A-Za-z]+(?:\s[A-Za-z]+)?)/g,
-                    '<span class="mention">@$1</span>'
-                  ),
-                }}
-              />
-              <div className="time-dlt-rep">
-                {msg.senderId === userDetails?.email && (
-                  <FaTrash
-                    className="delete-btn"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      deleteMessage(msg.id);
-                    }}
-                  />
-                )}
+                className={`time-dlt-rep ${
+                  msg.senderId === userDetails?.email ? "align-left" : "align-right"
+                }`}
+              >
+                <div className="action-icons">
+                  {msg.senderId === userDetails?.email && (
+                    <>
+                      <FaTrash
+                        className="delete-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setConfirmDeleteId(msg.id);
+                        }}
+                      />
+                    </>
+                  )}
+
+                  <FaReply className="reply-btn" onClick={() => setReplyTo(msg)} />
+                </div>
+
                 {msg.time && (
                   <div className="chat-time">
                     {msg.time.toDate().toLocaleTimeString([], {
@@ -359,21 +469,28 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
                     })}
                   </div>
                 )}
-                {msg.senderId !== userDetails?.email ?
-                  <FaReply className="reply-btn" onClick={() => setReplyTo(msg)}/> : ""
-                }
               </div>
             </div>
           ))}
           <div ref={chatEndRef} />
+          {showVoteForm && (
+            <VoteMessage
+              onClose={() => setShowVoteForm(false)}
+              userDetails={userDetails}
+              chatPath={chatPath}
+              title={title}
+            />
+          )}
         </div>
 
         {replyTo && (
           <div className="reply-preview">
             Replying to <strong>{replyTo.name}</strong>: “{replyTo.msg}”
-            <FaTimes className="cancel-reply"
+            <FaTimes
+              className="cancel-reply"
               onClick={() => setReplyTo(null)}
-              title="Cancel reply" />
+              title="Cancel reply"
+            />
           </div>
         )}
 
@@ -395,12 +512,10 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
                 setMentionIndex(0);
               }
             }}
-
           >
             @{mentionQueue.length - mentionIndex}
           </button>
         )}
-
 
         <div className="chat-input-container" style={{ position: "relative" }}>
           <input
@@ -412,6 +527,10 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
             onChange={handleInputChange}
             onKeyDown={(e) => e.key === "Enter" && sendMessage()}
           />
+          <button className="vote-button" onClick={() => setShowVoteForm(true)}>
+            📊
+          </button>
+
           <button className="send-button" onClick={sendMessage}>
             Send
           </button>
@@ -456,6 +575,30 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
           ))}
         </ul>
       </div>
+      {confirmDeleteId && (
+        <div className="modal-overlay" onClick={() => setConfirmDeleteId(null)}>
+          <div
+            className="delete-confirm-popup"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <span>Delete this message?</span>
+            <div className="popup-buttons">
+              <button
+                className="confirm-btn"
+                onClick={() => handleDeleteConfirmed(confirmDeleteId)}
+              >
+                Delete
+              </button>
+              <button
+                className="cancel-btn"
+                onClick={() => setConfirmDeleteId(null)}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

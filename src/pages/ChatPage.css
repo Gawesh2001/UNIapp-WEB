@@ -101,7 +101,7 @@
 
 .send-button {
   margin-left: 10px;
-  padding: 10px 20px;
+  padding: 10px 30px;
   background-color: #007bff;
   color: white;
   border: none;
@@ -196,37 +196,58 @@
   font-weight: bold;
 }
 
-.delete-btn {
-  background: none;
-  border: none;
-  color: #5cabffa4;
-  font-size: 1rem;
-  cursor: pointer;
-  float: right;
-}
-
-.delete-btn:hover{
-  color: white;
-}
-
-.reply-btn{
-  background: none;
-  border: none;
-  color: #999;
-  font-size: 1rem;
-  cursor: pointer;
-  float: right;
-}
-
-.reply-btn:hover{
-  color: #222;
-}
-
-.time-dlt-rep{
+.time-dlt-rep {
   display: flex;
   justify-content: space-between;
   margin-top: 15px;
+  align-items: center;
 }
+
+.align-left {
+  flex-direction: row-reverse; /* puts time on right, icons on left */
+}
+
+.align-right {
+  flex-direction: row; /* default, time on right, icons on right */
+}
+
+.align-left .action-icons .reply-btn{
+  color: #5cabffa4;
+}
+
+.align-left .action-icons .reply-btn:hover{
+  color: white;
+}
+
+.action-icons {
+  display: flex;
+  gap: 10px;
+}
+
+.delete-btn,
+.reply-btn {
+  background: none;
+  border: none;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.delete-btn {
+  color: #5cabffa4;
+}
+
+.delete-btn:hover {
+  color: white;
+}
+
+.reply-btn {
+  color: #999;
+}
+
+.reply-btn:hover {
+  color: #222;
+}
+
 
 .chat-input-container {
   position: relative; /* container must be relative */
@@ -280,5 +301,164 @@
 }
 .mention-alert-btn:hover {
   transform: scale(1.1);
+}
+
+.vote-button{
+  background-color: white;
+  border-width: 1px;
+  border-style: solid;
+  border-color: #007bff;
+  border-radius: 10px;
+  padding: 5px 10px;
+  margin-left: 5px;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.vote-button:hover{
+  transform: scale(1.1);
+}
+
+.vote-block {
+  width: 250px;
+  padding: 10px 0;
+}
+
+/* Container label for each checkbox option */
+.vote-option-label {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  margin: 6px 0;
+  padding: 6px 12px;
+  background: #eee;
+  color: #333;
+  border-radius: 4px;
+  cursor: pointer;
+  user-select: none;
+  font-weight: 500;
+  transition: background-color 0.2s ease;
+}
+
+/* Hover effect for label */
+.vote-option-label:hover {
+  background: #ddd;
+}
+
+/* The checkbox input inside label */
+.vote-option-label input{
+  color: #333;
+  margin-right: 10px;
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+
+/* Vote count and percentage aligned right */
+.vote-percent {
+  margin-left: auto;
+  font-size: 0.85em;
+  color: #555;
+  white-space: nowrap;
+}
+
+/* Optional: keep text and count spaced nicely */
+.vote-opt-count {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+
+.modal-overlay {
+  position: fixed;
+  inset: 0; /* shorthand for top:0; right:0; bottom:0; left:0; */
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(1px);
+  animation: fadeIn 0.2s ease forwards;
+}
+
+.delete-confirm-popup {
+  background: #fff;
+  padding: 2rem 2.5rem;
+  border-radius: 12px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.15);
+  max-width: 320px;
+  width: 90%;
+  text-align: center;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  animation: slideUp 0.3s ease forwards;
+  user-select: none;
+}
+
+.delete-confirm-popup span {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #222;
+  display: block;
+  margin-bottom: 1.5rem;
+}
+
+.popup-buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+}
+
+.confirm-btn,
+.cancel-btn {
+  flex: 1;
+  padding: 0.6rem 0;
+  border-radius: 8px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.confirm-btn {
+  background: #e53e3e; /* modern red */
+  color: white;
+  box-shadow: 0 4px 10px rgba(229, 62, 62, 0.4);
+}
+.confirm-btn:hover {
+  background: #c53030;
+  box-shadow: 0 6px 14px rgba(197, 48, 48, 0.6);
+}
+
+.cancel-btn {
+  background: #edf2f7; /* soft gray */
+  color: #4a5568;
+  box-shadow: 0 4px 10px rgba(237, 242, 247, 0.7);
+}
+.cancel-btn:hover {
+  background: #e2e8f0;
+  box-shadow: 0 6px 14px rgba(226, 232, 240, 0.9);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
