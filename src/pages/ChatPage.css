@@ -1,9 +1,14 @@
+.chat-page-wrapper {
+  display: flex;
+  height: 100vh;
+}
+
 .chat-container {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  background-color: #f3f3f3;
-  font-family: sans-serif;
+  padding: 16px;
+  overflow: hidden;
 }
 
 .chat-header {
@@ -15,12 +20,11 @@
   border-radius: 20px;
   display: flex;
   align-items: center;
-  justify-content: center; /* center content by default */
-  position: relative;      /* for absolute positioning */
-  height: 50px;            /* fixed height to help vertical centering */
+  justify-content: center;
+  position: relative;
+  height: 50px;
 }
 
-/* Position the icon absolutely at the left */
 .back-icon {
   position: absolute;
   left: 15px;
@@ -29,16 +33,14 @@
   cursor: pointer;
 }
 
-/* Faculty text centered */
 .faculty-text {
   flex-grow: 1;
   text-align: center;
-  pointer-events: none; /* so clicks don't affect text */
+  pointer-events: none;
 }
 
-
 .chat-messages {
-  height: calc(100vh - 180px); 
+  height: calc(100vh - 180px);
   flex: 1;
   padding: 20px;
   overflow-y: auto;
@@ -77,6 +79,11 @@
   margin-bottom: 4px;
 }
 
+.chat-text {
+  white-space: pre-wrap;
+  line-height: 1.4;
+}
+
 .chat-time {
   font-size: 12px;
   color: #999;
@@ -89,6 +96,7 @@
   padding: 15px;
   background-color: white;
   border-top: 1px solid #ccc;
+  align-items: center;
 }
 
 .chat-input {
@@ -113,17 +121,9 @@
   background-color: #0056b3;
 }
 
-.chat-page-wrapper {
-  display: flex;
-  height: 100vh;
-}
-
-.chat-container {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  padding: 16px;
-  overflow: hidden;
+.send-button:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
 }
 
 .chat-sidebar {
@@ -137,8 +137,9 @@
 
 .chat-sidebar h3 {
   margin-bottom: 10px;
+  font-size: 16px;
+  text-align: center;
 }
-
 
 .sidebar-user {
   display: flex;
@@ -146,17 +147,18 @@
   gap: 10px;
   padding: 8px;
   font-size: 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .initials-circle {
-  background-color: #3B82F6; /* Tailwind's bg-blue-500 */
-  color: white;              /* text-white */
-  border-radius: 9999px;     /* rounded-full */
-  width: 40px;               /* w-10 */
-  height: 40px;              /* h-10 */
-  display: flex;             /* flex */
-  align-items: center;       /* items-center */
-  justify-content: center;   /* justify-center */
+  background-color: #3B82F6;
+  color: white;
+  border-radius: 9999px;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-weight: bold;
   font-size: 14px;
 }
@@ -168,6 +170,7 @@
   margin: 4px 20px;
   font-size: 0.9rem;
   position: relative;
+  border-radius: 4px;
 }
 
 .cancel-reply {
@@ -177,7 +180,7 @@
   font-weight: bold;
 }
 
-.cancel-reply:hover{
+.cancel-reply:hover {
   color: red;
 }
 
@@ -205,11 +208,11 @@
   float: right;
 }
 
-.delete-btn:hover{
+.delete-btn:hover {
   color: white;
 }
 
-.reply-btn{
+.reply-btn {
   background: none;
   border: none;
   color: #999;
@@ -218,23 +221,19 @@
   float: right;
 }
 
-.reply-btn:hover{
+.reply-btn:hover {
   color: #222;
 }
 
-.time-dlt-rep{
+.time-dlt-rep {
   display: flex;
   justify-content: space-between;
   margin-top: 15px;
 }
 
-.chat-input-container {
-  position: relative; /* container must be relative */
-}
-
 .mention-suggestions {
   position: absolute;
-  bottom: 70px; /* position above input (adjust if needed) */
+  bottom: 70px;
   left: 0;
   background: white;
   border: 1px solid #ccc;
@@ -278,7 +277,162 @@
   z-index: 999;
   transition: transform 0.2s ease;
 }
+
 .mention-alert-btn:hover {
   transform: scale(1.1);
 }
 
+.image-preview-container {
+  position: relative;
+  margin: 10px 20px;
+  max-width: 300px;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  border: 1px solid #eee;
+}
+
+.image-preview {
+  width: 100%;
+  height: auto;
+  display: block;
+  max-height: 300px;
+  object-fit: contain;
+}
+
+.remove-image-btn {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  background: rgba(0,0,0,0.5);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 25px;
+  height: 25px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.remove-image-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.remove-image-btn:hover:not(:disabled) {
+  background: rgba(0,0,0,0.8);
+}
+
+.upload-progress-container {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 20px;
+  background-color: rgba(0,0,0,0.2);
+}
+
+.upload-progress-bar {
+  height: 100%;
+  background-color: #4CAF50;
+  transition: width 0.3s ease;
+}
+
+.upload-progress-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-size: 12px;
+  font-weight: bold;
+  text-shadow: 0 0 2px rgba(0,0,0,0.5);
+}
+
+.message-image-container {
+  margin: 10px 0;
+}
+
+.message-image {
+  max-width: 100%;
+  max-height: 300px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform 0.2s;
+  border: 1px solid #eee;
+  object-fit: contain;
+}
+
+.message-image:hover {
+  transform: scale(1.02);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.image-upload-btn {
+  background: none;
+  border: none;
+  color: #007bff;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
+  transition: color 0.2s;
+}
+
+.image-upload-btn:hover {
+  color: #0056b3;
+}
+
+.image-upload-btn:disabled {
+  color: #ccc;
+  cursor: not-allowed;
+}
+
+.image-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.image-modal-content {
+  max-width: 90%;
+  max-height: 90%;
+  position: relative;
+}
+
+.modal-image {
+  max-width: 100%;
+  max-height: 80vh;
+  border-radius: 8px;
+  object-fit: contain;
+}
+
+.image-modal-close {
+  position: absolute;
+  top: -40px;
+  right: 0;
+  color: white;
+  font-size: 30px;
+  cursor: pointer;
+  background: rgba(0,0,0,0.5);
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.image-modal-close:hover {
+  background: rgba(0,0,0,0.8);
+}

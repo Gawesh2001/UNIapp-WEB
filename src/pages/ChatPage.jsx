@@ -14,9 +14,21 @@ import {
   query,
   where,
 } from "firebase/firestore";
-import { FaChevronCircleLeft, FaTrash, FaReply, FaTimes} from "react-icons/fa";
+import { FaChevronCircleLeft, FaTrash, FaReply, FaTimes, FaImage } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { nanoid } from "nanoid";
+import { Cloudinary } from "@cloudinary/url-gen";
+import { AdvancedImage } from '@cloudinary/react';
+
+const cld = new Cloudinary({
+  cloud: {
+    cloudName: process.env.REACT_APP_CLOUDINARY_CLOUD_NAME || 'dfnzttf4v'
+   // cloudName: process.env.REACT_APP_CLOUDINARY_CLOUD_NAME
+  },
+  url: {
+    secure: true
+  }
+});
 
 const ChatGroup = ({ chatPath, title, userFilter }) => {
   const navigate = useNavigate();
@@ -33,12 +45,14 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
   const [mentionQuery, setMentionQuery] = useState("");
   const [showMentionList, setShowMentionList] = useState(false);
   const [mentionSuggestions, setMentionSuggestions] = useState([]);
-  const [mentionAlert, setMentionAlert] = useState(null);
   const isAtBottomRef = useRef(true);
-
   const [mentionQueue, setMentionQueue] = useState([]);
   const [mentionIndex, setMentionIndex] = useState(0);
-
+  const [imageToUpload, setImageToUpload] = useState(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef(null);
+  const [selectedImage, setSelectedImage] = useState(null);
 
   useEffect(() => {
     const user = UserSession.currentUser;
@@ -60,7 +74,11 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
     const q = query(chatRef, orderBy("time", "asc"));
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const chats = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      const chats = snapshot.docs.map((doc) => ({ 
+        id: doc.id, 
+        ...doc.data(),
+        time: doc.data().time ? doc.data().time.toDate() : new Date()
+      }));
       setMessages(chats);
 
       const latestMention = chats.find(
@@ -69,14 +87,13 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
           msg.senderId !== userDetails.email
       );
       if (latestMention && !isAtBottomRef.current) {
-        setMentionAlert(latestMention.id);
+        setMentionQueue(prev => [...prev, latestMention.id]);
       }
     });
 
     return () => unsubscribe();
   }, [userDetails, chatPath]);
 
-  // Load lastSeenMessageId from user's subcollection
   useEffect(() => {
     if (!userDetails || !title) return;
 
@@ -134,50 +151,156 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
     return () => chatBox.removeEventListener("scroll", handleScroll);
   }, [messages, lastSeenMessageId]);
 
-
   useEffect(() => {
     if (lastSeenRef.current) {
       lastSeenRef.current.scrollIntoView({ behavior: "auto", block: "start" });
     }
   }, [lastSeenMessageId]);
 
+  // const uploadImage = async () => {
+  //   if (!imageToUpload) return null;
+
+  //   const cloudName = process.env.REACT_APP_CLOUDINARY_CLOUD_NAME || 'dfnzttf4v';
+  //   const uploadPreset = process.env.REACT_APP_CLOUDINARY_UPLOAD_PRESET || 'uniapp';
+
+  //   const formData = new FormData();
+  //   formData.append('file', imageToUpload);
+  //   formData.append('upload_preset', uploadPreset);
+
+  //   try {
+  //     setIsUploading(true);
+  //     setUploadProgress(0);
+      
+  //     const xhr = new XMLHttpRequest();
+  //     xhr.open('POST', `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, true);
+      
+  //     xhr.upload.onprogress = (e) => {
+  //       if (e.lengthComputable) {
+  //         const progress = Math.round((e.loaded / e.total) * 100);
+  //         setUploadProgress(progress);
+  //       }
+  //     };
+
+  //     return new Promise((resolve, reject) => {
+  //       xhr.onload = () => {
+  //         if (xhr.status === 200) {
+  //           const response = JSON.parse(xhr.responseText);
+  //           resolve(response.secure_url);
+  //         } else {
+  //           reject(new Error('Upload failed'));
+  //         }
+  //         setIsUploading(false);
+  //       };
+
+  //       xhr.onerror = () => {
+  //         reject(new Error('Upload failed'));
+  //         setIsUploading(false);
+  //       };
+
+  //       xhr.send(formData);
+  //     });
+  //   } catch (error) {
+  //     console.error('Error uploading image:', error);
+  //     alert(`Image upload failed: ${error.message}`);
+  //     setIsUploading(false);
+  //     return null;
+  //   }
+  // };
+
+
+  const uploadImage = async () => {
+  if (!imageToUpload) return null;
+
+  const cloudName = process.env.REACT_APP_CLOUDINARY_CLOUD_NAME || 'dfnzttf4v';
+  const uploadPreset = process.env.REACT_APP_CLOUDINARY_UPLOAD_PRESET || 'uniapp';
+
+  const formData = new FormData();
+  formData.append('file', imageToUpload);
+  formData.append('upload_preset', uploadPreset);
+
+  try {
+    setIsUploading(true);
+    setUploadProgress(0);
+
+    const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+      method: 'POST',
+      body: formData
+    });
+
+    const result = await response.json();
+    setIsUploading(false);
+
+    if (!response.ok) {
+      throw new Error(result.error?.message || "Upload failed");
+    }
+
+    return result.secure_url;
+  } catch (error) {
+    console.error('Error uploading image:', error);
+    alert(`Image upload failed: ${error.message}`);
+    setIsUploading(false);
+    return null;
+  }
+};
+
+
   const sendMessage = async () => {
-    if (!newMessage.trim()) return;
+    if (!newMessage.trim() && !imageToUpload) return;
+
+    let imageUrl = null;
+    if (imageToUpload) {
+      imageUrl = await uploadImage();
+      if (!imageUrl) return;
+    }
 
     const chatRef = collection(db, ...chatPath);
     const newMsg = newMessage.trim();
-    setNewMessage("");
-    setReplyTo(null);
-
+    
     const groupId = chatPath.join("_");
     const customId = `${groupId.split(" ")
       .map(word => word[0])
       .join("")
       .toUpperCase()}_${nanoid(8)}`;
 
-    const docRef = doc(chatRef, customId);
-    await setDoc(docRef, {
-      msg: newMsg,
-      name: userDetails.name,
-      senderId: userDetails.email,
-      time: serverTimestamp(),
-      replyTo: replyTo ? { name: replyTo.name, msg: replyTo.msg } : null,
-    });
+    try {
+      await setDoc(doc(chatRef, customId), {
+        msg: newMsg,
+        name: userDetails.name,
+        senderId: userDetails.email,
+        time: serverTimestamp(),
+        replyTo: replyTo ? { name: replyTo.name, msg: replyTo.msg } : null,
+        imageUrl: imageUrl || null
+      });
 
-    // Save last seen message in user's chatLastSeen subcollection
-    const seenDocRef = doc(
-      db,
-      "UserDetails",
-      userDetails.id,
-      "chatLastSeen",
-      title
-    );
-    await setDoc(seenDocRef, { lastSeenId: customId }, { merge: true });
+      setNewMessage("");
+      setReplyTo(null);
+      setImageToUpload(null);
+      setUploadProgress(0);
+
+      const seenDocRef = doc(
+        db,
+        "UserDetails",
+        userDetails.id,
+        "chatLastSeen",
+        title
+      );
+      await setDoc(seenDocRef, { lastSeenId: customId }, { merge: true });
+    } catch (error) {
+      console.error("Error sending message:", error);
+      alert("Failed to send message. Please try again.");
+    }
   };
 
   const deleteMessage = async (id) => {
-    const messageRef = doc(db, ...chatPath, id);
-    await deleteDoc(messageRef);
+    if (window.confirm("Are you sure you want to delete this message?")) {
+      try {
+        const messageRef = doc(db, ...chatPath, id);
+        await deleteDoc(messageRef);
+      } catch (error) {
+        console.error("Error deleting message:", error);
+        alert("Failed to delete message.");
+      }
+    }
   };
 
   useEffect(() => {
@@ -293,19 +416,115 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
   };
 
   useEffect(() => {
-  const handleFocus = () => {
-    const lastMsg = messages[messages.length - 1];
-    if (lastMsg && lastMsg.id !== lastSeenMessageId) {
-      updateLastSeen(lastMsg.id);
+    const handleFocus = () => {
+      const lastMsg = messages[messages.length - 1];
+      if (lastMsg && lastMsg.id !== lastSeenMessageId) {
+        updateLastSeen(lastMsg.id);
+      }
+    };
+
+    window.addEventListener("focus", handleFocus);
+    return () => window.removeEventListener("focus", handleFocus);
+  }, [messages, lastSeenMessageId]);
+
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    const maxSize = 5 * 1024 * 1024;
+
+    if (!validTypes.includes(file.type)) {
+      alert('Please select a valid image (JPEG, PNG, GIF, or WEBP)');
+      return;
     }
+
+    if (file.size > maxSize) {
+      alert('Image must be smaller than 5MB');
+      return;
+    }
+
+    setImageToUpload(file);
   };
 
-  window.addEventListener("focus", handleFocus);
-  return () => window.removeEventListener("focus", handleFocus);
-}, [messages, lastSeenMessageId]);
+  const renderImagePreview = () => {
+    if (!imageToUpload) return null;
 
+    const objectUrl = URL.createObjectURL(imageToUpload);
+    return (
+      <div className="image-preview-container">
+        <img src={objectUrl} alt="Preview" className="image-preview" />
+        <button 
+          className="remove-image-btn"
+          onClick={() => {
+            setImageToUpload(null);
+            setUploadProgress(0);
+          }}
+          disabled={isUploading}
+        >
+          <FaTimes />
+        </button>
+        {isUploading && (
+          <div className="upload-progress-container">
+            <div 
+              className="upload-progress-bar" 
+              style={{ width: `${uploadProgress}%` }}
+            ></div>
+            <span className="upload-progress-text">
+              {uploadProgress}% {uploadProgress < 100 ? 'Uploading...' : 'Processing...'}
+            </span>
+          </div>
+        )}
+      </div>
+    );
+  };
 
+  const openImageModal = (imageUrl) => {
+    setSelectedImage(imageUrl);
+  };
 
+  const closeImageModal = () => {
+    setSelectedImage(null);
+  };
+
+  const renderMessageContent = (msg) => {
+    if (msg.imageUrl) {
+      const image = cld.image(msg.imageUrl);
+      return (
+        <div className="message-image-container">
+          <AdvancedImage 
+            cldImg={image} 
+            className="message-image"
+            alt="Shared content"
+            onClick={() => openImageModal(msg.imageUrl)}
+          />
+          {msg.msg && (
+            <div 
+              className="chat-text"
+              dangerouslySetInnerHTML={{
+                __html: (msg.msg || "").replace(
+                  /@([A-Za-z]+(?:\s[A-Za-z]+)?)/g,
+                  '<span class="mention">@$1</span>'
+                ),
+              }}
+            />
+          )}
+        </div>
+      );
+    }
+    
+    return (
+      <div 
+        className="chat-text"
+        dangerouslySetInnerHTML={{
+          __html: (msg.msg || "").replace(
+            /@([A-Za-z]+(?:\s[A-Za-z]+)?)/g,
+            '<span class="mention">@$1</span>'
+          ),
+        }}
+      />
+    );
+  };
 
   return (
     <div className="chat-page-wrapper">
@@ -332,15 +551,7 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
                 </div>
               )}
               <div className="chat-name">{msg.name}</div>
-              <div
-                className="chat-text"
-                dangerouslySetInnerHTML={{
-                  __html: msg.msg.replace(
-                    /@([A-Za-z]+(?:\s[A-Za-z]+)?)/g,
-                    '<span class="mention">@$1</span>'
-                  ),
-                }}
-              />
+              {renderMessageContent(msg)}
               <div className="time-dlt-rep">
                 {msg.senderId === userDetails?.email && (
                   <FaTrash
@@ -353,7 +564,7 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
                 )}
                 {msg.time && (
                   <div className="chat-time">
-                    {msg.time.toDate().toLocaleTimeString([], {
+                    {msg.time.toLocaleTimeString([], {
                       hour: "2-digit",
                       minute: "2-digit",
                     })}
@@ -370,7 +581,7 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
 
         {replyTo && (
           <div className="reply-preview">
-            Replying to <strong>{replyTo.name}</strong>: “{replyTo.msg}”
+            Replying to <strong>{replyTo.name}</strong>: "{replyTo.msg}"
             <FaTimes className="cancel-reply"
               onClick={() => setReplyTo(null)}
               title="Cancel reply" />
@@ -385,7 +596,7 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
               const el = document.getElementById(`msg-${currentMentionId}`);
               if (el) {
                 el.scrollIntoView({ behavior: "smooth", block: "center" });
-                updateLastSeen(currentMentionId); // 🟢 Mark mention as seen
+                updateLastSeen(currentMentionId);
               }
 
               if (mentionIndex + 1 < mentionQueue.length) {
@@ -395,14 +606,30 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
                 setMentionIndex(0);
               }
             }}
-
           >
             @{mentionQueue.length - mentionIndex}
           </button>
         )}
 
+        {renderImagePreview()}
 
         <div className="chat-input-container" style={{ position: "relative" }}>
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleImageChange}
+            accept="image/*"
+            style={{ display: 'none' }}
+            disabled={isUploading}
+          />
+          <button 
+            className="image-upload-btn"
+            onClick={() => fileInputRef.current.click()}
+            disabled={isUploading}
+          >
+            <FaImage />
+          </button>
+          
           <input
             ref={inputRef}
             type="text"
@@ -411,9 +638,14 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
             value={newMessage}
             onChange={handleInputChange}
             onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+            disabled={isUploading}
           />
-          <button className="send-button" onClick={sendMessage}>
-            Send
+          <button 
+            className="send-button" 
+            onClick={sendMessage}
+            disabled={isUploading}
+          >
+            {isUploading ? 'Sending...' : 'Send'}
           </button>
 
           {showMentionList && mentionSuggestions.length > 0 && (
@@ -456,6 +688,21 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
           ))}
         </ul>
       </div>
+
+      {selectedImage && (
+        <div className="image-modal" onClick={closeImageModal}>
+          <div className="image-modal-content" onClick={e => e.stopPropagation()}>
+            <AdvancedImage 
+              cldImg={cld.image(selectedImage)} 
+              className="modal-image"
+              alt="Full size content"
+            />
+            <button className="image-modal-close" onClick={closeImageModal}>
+              <FaTimes />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
