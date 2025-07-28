@@ -4,8 +4,10 @@ import Login from "./LOGIN/Login";
 import Home from "./pages/Home"; // create a dummy Home page
 import Signup from "./LOGIN/Signup";
 import Profile from "./pages/Profile";
-import ChatPage from "./pages/ChatPage";
 import ChatPageWrapper from "./components/ChatPageWrapper";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+
 
 function App() {
   return (
@@ -18,6 +20,15 @@ function App() {
         <Route path="/profile" element={<Profile />} />
         <Route path="/chatPage" element={<ChatPageWrapper />} />
       </Routes>
+      <ToastContainer 
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        pauseOnHover
+        draggable
+      />
     </Router>
   );
 }

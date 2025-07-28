@@ -13,13 +13,18 @@ import {
   orderBy,
   query,
   where,
+  getDocs,
+  addDoc
 } from "firebase/firestore";
-import { FaChevronCircleLeft, FaTrash, FaReply, FaTimes, FaImage } from "react-icons/fa";
+import { FaChevronCircleLeft, FaTrash, FaReply, FaTimes, FaFlag } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { nanoid } from "nanoid";
 import VoteMessage from "../components/VoteMessage";
 import { Cloudinary } from "@cloudinary/url-gen";
 import { AdvancedImage } from '@cloudinary/react';
+import { toast } from "react-toastify";
+import { Filter } from 'bad-words';
+
 
 const cld = new Cloudinary({
   cloud: {
@@ -56,6 +61,8 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef(null);
   const [selectedImage, setSelectedImage] = useState(null);
+  const [reportingMessage, setReportingMessage] = useState(null);
+
 
   useEffect(() => {
     const user = UserSession.currentUser;
@@ -77,8 +84,8 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
     const q = query(chatRef, orderBy("time", "asc"));
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const chats = snapshot.docs.map((doc) => ({ 
-        id: doc.id, 
+      const chats = snapshot.docs.map((doc) => ({
+        id: doc.id,
         ...doc.data(),
         time: doc.data().time ? doc.data().time.toDate() : new Date()
       }));
@@ -191,11 +198,54 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
       return `https://res.cloudinary.com/${cloudName}/image/upload/${result.public_id}.${result.format}`;
     } catch (error) {
       console.error('Error uploading image:', error);
-      alert(`Image upload failed: ${error.message}`);
+      toast.error(`Image upload failed: ${error.message}`);
       setIsUploading(false);
       return null;
     }
   };
+
+  const filter = new Filter();
+
+
+  filter.addWords("paki", "hentai", "bastard", "hutto");
+
+  const cleanOffensiveWords = (text) => {
+    return filter.clean(text);
+  };
+
+  // Report Function
+  const reportMessage = async ({ reportedUserId, reportedBy, messageId, reason }) => {
+    try {
+      const reportsRef = collection(db, "UserDetails", reportedUserId, "reports");
+
+      const q = query(
+        reportsRef,
+        where("messageId", "==", messageId),
+        where("reportedBy", "==", reportedBy)
+      );
+      const querySnapshot = await getDocs(q);
+
+      if (!querySnapshot.empty) {
+        toast.error("You already reported this message.");
+        return;
+      }
+
+      await addDoc(reportsRef, {
+        reportedUserId,
+        reportedBy,
+        messageId,
+        reason,
+        timestamp: serverTimestamp(),
+        status: "pending"
+      });
+
+      toast.info("Report submitted successfully!");
+    } catch (error) {
+      console.error("Error submitting report:", error);
+      toast.error("Failed to submit report. Check console for details.");
+    }
+  };
+
 
   const sendMessage = async () => {
     if (!newMessage.trim() && !imageToUpload) return;
@@ -207,7 +257,7 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
     }
 
     const chatRef = collection(db, ...chatPath);
-    const newMsg = newMessage.trim();
+    const newMsg = cleanOffensiveWords(newMessage.trim());
     setNewMessage("");
     setReplyTo(null);
     setImageToUpload(null);
@@ -223,13 +273,18 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
     await setDoc(docRef, {
       msg: newMsg,
       name: userDetails.name,
-      senderId: userDetails.email,
+      senderId: userDetails.id,
       time: serverTimestamp(),
-      replyTo: replyTo ? { name: replyTo.name, msg: replyTo.msg } : null,
+      replyTo: replyTo ? {
+        name: replyTo.name,
+        msg: replyTo.msg,
+        imageUrl: replyTo.imageUrl || null,  // Include imageUrl if it exists
+        type: replyTo.imageUrl ? "image" : "text"  // Optional: Add type for easier rendering
+      } : null,
       imageUrl: imageUrl || null
     });
 
-    // Save last seen message in user's chatLastSeen subcollection
+    // Save last seen message
     const seenDocRef = doc(
       db,
       "UserDetails",
@@ -421,12 +476,12 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
     const maxSize = 5 * 1024 * 1024;
 
     if (!validTypes.includes(file.type)) {
-      alert('Please select a valid image (JPEG, PNG, GIF, or WEBP)');
+      toast.error('Please select a valid image (JPEG, PNG, GIF, or WEBP)');
       return;
     }
 
     if (file.size > maxSize) {
-      alert('Image must be smaller than 5MB');
+      toast.error('Image must be smaller than 5MB');
       return;
     }
 
@@ -440,7 +495,7 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
     return (
       <div className="image-preview-container">
         <img src={objectUrl} alt="Preview" className="image-preview" />
-        <button 
+        <button
           className="remove-image-btn"
           onClick={() => {
             setImageToUpload(null);
@@ -452,8 +507,8 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
         </button>
         {isUploading && (
           <div className="upload-progress-container">
-            <div 
-              className="upload-progress-bar" 
+            <div
+              className="upload-progress-bar"
               style={{ width: `${uploadProgress}%` }}
             ></div>
             <span className="upload-progress-text">
@@ -477,17 +532,17 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
     if (msg.imageUrl) {
       // Create a Cloudinary image instance with proper transformations
       const image = cld.image(msg.imageUrl.replace('https://res.cloudinary.com/dfnzttf4v/image/upload/', ''));
-      
+
       return (
         <div className="message-image-container">
-          <AdvancedImage 
-            cldImg={image} 
+          <AdvancedImage
+            cldImg={image}
             className="message-image"
             alt="Shared content"
             onClick={() => openImageModal(msg.imageUrl)}
           />
           {msg.msg && (
-            <div 
+            <div
               className="chat-text"
               dangerouslySetInnerHTML={{
                 __html: (msg.msg || "").replace(
@@ -500,7 +555,7 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
         </div>
       );
     }
-    
+
     if (msg.type === "vote") {
       return (
         <div className="vote-block">
@@ -542,9 +597,9 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
         </div>
       );
     }
-    
+
     return (
-      <div 
+      <div
         className="chat-text"
         dangerouslySetInnerHTML={{
           __html: (msg.msg || "").replace(
@@ -573,7 +628,7 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
               key={msg.id}
               id={`msg-${msg.id}`}
               ref={msg.id === lastSeenMessageId ? lastSeenRef : null}
-              className={`chat-bubble ${msg.senderId === userDetails?.email ? "me" : "other"}`}
+              className={`chat-bubble ${msg.senderId === userDetails?.id ? "me" : "other"}`}
             >
               <div className="chat-name">{msg.name}</div>
 
@@ -582,14 +637,14 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
                   <strong>{msg.replyTo.name}</strong>: {msg.replyTo.msg}
                 </div>
               )}
-              
+
               {renderMessageContent(msg)}
 
               <div
-                className={`time-dlt-rep ${msg.senderId === userDetails?.email ? "align-left" : "align-right"}`}
+                className={`time-dlt-rep ${msg.senderId === userDetails?.id ? "align-left" : "align-right"}`}
               >
                 <div className="action-icons">
-                  {msg.senderId === userDetails?.email && (
+                  {msg.senderId === userDetails?.id && (
                     <>
                       <FaTrash
                         className="delete-btn"
@@ -600,6 +655,15 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
                       />
                     </>
                   )}
+
+                  {msg.senderId !== userDetails?.id && (
+                    <FaFlag className="report-btn"
+                      onClick={() =>
+                        setReportingMessage(msg)
+                      }
+                    />
+                  )}
+
 
                   <FaReply className="reply-btn" onClick={() => setReplyTo(msg)} />
                 </div>
@@ -671,14 +735,14 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
             style={{ display: 'none' }}
             disabled={isUploading}
           />
-          <button 
+          <button
             className="image-upload-btn"
             onClick={() => fileInputRef.current.click()}
             disabled={isUploading}
           >
-            <FaImage />
+            📤
           </button>
-          
+
           <input
             ref={inputRef}
             type="text"
@@ -689,15 +753,15 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
             onKeyDown={(e) => e.key === "Enter" && sendMessage()}
             disabled={isUploading}
           />
-          <button 
-            className="vote-button" 
+          <button
+            className="vote-button"
             onClick={() => setShowVoteForm(true)}
             disabled={isUploading}
           >
             📊
           </button>
-          <button 
-            className="send-button" 
+          <button
+            className="send-button"
             onClick={sendMessage}
             disabled={isUploading}
           >
@@ -746,34 +810,101 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
 
       {confirmDeleteId && (
         <div className="modal-overlay" onClick={() => setConfirmDeleteId(null)}>
-          <div
-            className="delete-confirm-popup"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <span>Delete this message?</span>
-            <div className="popup-buttons">
-              <button
-                className="confirm-btn"
-                onClick={() => handleDeleteConfirmed(confirmDeleteId)}
-              >
-                Delete
-              </button>
-              <button
-                className="cancel-btn"
-                onClick={() => setConfirmDeleteId(null)}
-              >
-                Cancel
-              </button>
+          <div className="delete-confirm-overlay">
+            <div
+              className="delete-confirm-popup"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <span>Delete this message?</span>
+              <div className="popup-buttons">
+                <button
+                  className="confirm-btn"
+                  onClick={() => handleDeleteConfirmed(confirmDeleteId)}
+                >
+                  Delete
+                </button>
+                <button
+                  className="cancel-btn"
+                  onClick={() => setConfirmDeleteId(null)}
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           </div>
         </div>
       )}
 
+      {reportingMessage && (
+    <div className="modal-overlay" onClick={() => setReportingMessage(null)}>
+        <div className="delete-confirm-overlay">
+            <div className="delete-confirm-popup" onClick={(e) => e.stopPropagation()}>
+                <span>Report this message as inappropriate?</span>
+
+                {/* 👤 Sender Info */}
+                <div className="report-sender-name">
+                    <strong>From:</strong> {reportingMessage.name || "Unknown User"}
+                </div>
+
+                {/* 🧾 Message Preview */}
+                <div className="report-preview">
+                    {reportingMessage.imageUrl ? (
+                        <img
+                            src={reportingMessage.imageUrl}
+                            className="report-image-preview"
+                            alt="Reported"
+                            
+                            onError={(e) => (e.target.style.display = "none")}
+                        />
+                    ) : reportingMessage.type === "vote" ? (
+                        <div className="report-text-preview">
+                            <strong>Poll:</strong> {reportingMessage.question}
+                        </div>
+                    ) : reportingMessage.msg ? (
+                        <div className="report-text-preview">
+                            {reportingMessage.msg.length > 100
+                                ? reportingMessage.msg.slice(0, 100) + "..."
+                                : reportingMessage.msg}
+                        </div>
+                    ) : (
+                        <div className="report-text-preview">[No content]</div>
+                    )}
+                </div>
+
+                <div className="popup-buttons">
+                    <button
+                        className="confirm-btn"
+                        onClick={() => {
+                            reportMessage({
+                                reportedUserId: reportingMessage.senderId,
+                                reportedBy: userDetails.id,
+                                messageId: reportingMessage.id,
+                                reason: "Inappropriate content",
+                            });
+                            setReportingMessage(null);
+                        }}
+                    >
+                        Report
+                    </button>
+                    <button
+                        className="cancel-btn"
+                        onClick={() => setReportingMessage(null)}
+                    >
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+)}
+
+
+
       {selectedImage && (
         <div className="image-modal" onClick={closeImageModal}>
           <div className="image-modal-content" onClick={e => e.stopPropagation()}>
-            <AdvancedImage 
-              cldImg={cld.image(selectedImage.replace('https://res.cloudinary.com/dfnzttf4v/image/upload/', ''))} 
+            <AdvancedImage
+              cldImg={cld.image(selectedImage.replace('https://res.cloudinary.com/dfnzttf4v/image/upload/', ''))}
               className="modal-image"
               alt="Full size content"
             />
