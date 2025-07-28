@@ -30,6 +30,8 @@ import {
 import { db } from '../firebase';
 import userSession from '../utils/UserSession';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import './Profile.css';
 
 function Profile() {
@@ -42,12 +44,33 @@ function Profile() {
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
   const [reason, setReason] = useState('');
+  const [selectedModule, setSelectedModule] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [appointments, setAppointments] = useState([]);
   const [studentAppointments, setStudentAppointments] = useState([]);
   const [activeTab, setActiveTab] = useState('pending');
   const [hasNewNotifications, setHasNewNotifications] = useState(false);
+  const [processingAppointment, setProcessingAppointment] = useState(null);
+
+  const sendApprovalEmail = async (toEmail, lecturerName, date, time) => {
+    try {
+      const response = await fetch(
+        "https://us-central1-your-project.cloudfunctions.net/sendApprovalEmail",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ toEmail, lecturerName, date, time }),
+        }
+      );
+
+      const result = await response.json();
+      if (!result.success) throw new Error("Failed to send email");
+    } catch (error) {
+      console.error("Email error:", error);
+      throw error;
+    }
+  };
 
   useEffect(() => {
     const unsubscribe = userSession.subscribe((user) => {
@@ -91,7 +114,11 @@ function Profile() {
             let hasNew = false;
             
             snapshot.forEach((doc) => {
-              const appt = { id: doc.id, ...doc.data() };
+              const appt = { 
+                id: doc.id, 
+                ...doc.data(),
+                updatedAt: doc.data().updatedAt?.toDate() 
+              };
               appointmentsData.push(appt);
               
               if (appt.status !== 'Pending' && !appt.studentViewed) {
@@ -118,7 +145,11 @@ function Profile() {
           const unsubscribe = onSnapshot(q, (snapshot) => {
             const appointmentsData = [];
             snapshot.forEach((doc) => {
-              appointmentsData.push({ id: doc.id, ...doc.data() });
+              appointmentsData.push({ 
+                id: doc.id, 
+                ...doc.data(),
+                updatedAt: doc.data().updatedAt?.toDate() 
+              });
             });
             setAppointments(appointmentsData);
           });
@@ -142,6 +173,10 @@ function Profile() {
     setError('');
 
     try {
+      if (!selectedModule) {
+        throw new Error('Please select a module');
+      }
+
       const moduleRef = doc(
         db,
         'Faculties',
@@ -151,13 +186,13 @@ function Profile() {
         'Batches',
         currentUser.batchNumber,
         'Modules',
-        'SDTP'
+        selectedModule
       );
 
       const moduleSnap = await getDoc(moduleRef);
       
       if (!moduleSnap.exists()) {
-        throw new Error('SDTP module not found');
+        throw new Error('Selected module not found');
       }
 
       const lecturerUid = moduleSnap.data().uid;
@@ -174,7 +209,7 @@ function Profile() {
         studentId: currentUser.uid,
         studentName: currentUser.name,
         studentEmail: currentUser.email,
-        module: 'SDTP',
+        module: selectedModule,
         date,
         time,
         reason,
@@ -193,9 +228,12 @@ function Profile() {
       setDate('');
       setTime('');
       setReason('');
+      setSelectedModule('');
+      toast.success('Appointment request submitted successfully!');
     } catch (err) {
       console.error('Appointment error:', err);
       setError(err.message || 'Failed to book appointment');
+      toast.error(err.message || 'Failed to book appointment');
     } finally {
       setSubmitting(false);
     }
@@ -205,32 +243,54 @@ function Profile() {
     if (!window.confirm('Are you sure you want to approve this appointment?')) return;
     
     try {
-      await updateDoc(doc(db, 'Appointments', appointmentId), {
+      setProcessingAppointment(appointmentId);
+      setError(null);
+      
+      const appointmentRef = doc(db, 'Appointments', appointmentId);
+      const appointmentSnap = await getDoc(appointmentRef);
+      const { studentEmail, lecturerName, date, time } = appointmentSnap.data();
+
+      await updateDoc(appointmentRef, {
         status: 'Approved',
-        lecturerReply: 'Appointment approved',
+        lecturerReply: 'Your appointment has been approved',
         updatedAt: serverTimestamp(),
         studentViewed: false
       });
+
+      await sendApprovalEmail(studentEmail, lecturerName, date, time);
+      
+      toast.success('Appointment approved and email sent!');
     } catch (err) {
       console.error('Error approving appointment:', err);
       setError('Failed to approve appointment');
+      toast.error(err.message || 'Failed to approve appointment');
+    } finally {
+      setProcessingAppointment(null);
     }
   };
 
   const handleRejectAppointment = async (appointmentId) => {
-    const rejectionReason = window.prompt('Please enter rejection reason:');
+    const rejectionReason = window.prompt('Please enter the reason for rejection:');
     if (!rejectionReason) return;
     
     try {
+      setProcessingAppointment(appointmentId);
+      setError(null);
+      
       await updateDoc(doc(db, 'Appointments', appointmentId), {
         status: 'Rejected',
-        lecturerReply: rejectionReason,
+        lecturerReply: `Rejected: ${rejectionReason}`,
         updatedAt: serverTimestamp(),
         studentViewed: false
       });
+      
+      toast.success('Appointment rejected successfully');
     } catch (err) {
       console.error('Error rejecting appointment:', err);
       setError('Failed to reject appointment');
+      toast.error(err.message || 'Failed to reject appointment');
+    } finally {
+      setProcessingAppointment(null);
     }
   };
 
@@ -239,15 +299,28 @@ function Profile() {
       await updateDoc(doc(db, 'Appointments', appointmentId), {
         studentViewed: true
       });
-      setHasNewNotifications(false);
+      setHasNewNotifications(studentAppointments.some(
+        a => !a.studentViewed && a.status !== 'Pending' && a.id !== appointmentId
+      ));
     } catch (err) {
       console.error('Error marking as viewed:', err);
+      toast.error('Failed to update notification status');
     }
   };
 
   const formatDate = (dateString) => {
     const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
     return new Date(dateString).toLocaleDateString('en-US', options);
+  };
+
+  const formatDateTime = (date) => {
+    if (!date) return '';
+    return date.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
   const filteredAppointments = appointments.filter(appt => {
@@ -276,7 +349,6 @@ function Profile() {
 
   return (
     <div className="profile-container">
-      {/* Back Button - Matches Announcements Style */}
       <button 
         onClick={() => navigate(-1)} 
         className="special-back-button"
@@ -296,38 +368,24 @@ function Profile() {
         <div className="profile-details">
           <p><strong>Name:</strong> {currentUser.name}</p>
           <p><strong>Email:</strong> {currentUser.email}</p>
-          {currentUser.faculty && (
-            <p><strong>Faculty:</strong> {currentUser.faculty}</p>
-          )}
-          {currentUser.degreeProgram && (
-            <p><strong>Degree:</strong> {currentUser.degreeProgram}</p>
-          )}
-          {currentUser.batchNumber && (
-            <p><strong>Batch:</strong> {currentUser.batchNumber}</p>
-          )}
+          {currentUser.faculty && <p><strong>Faculty:</strong> {currentUser.faculty}</p>}
+          {currentUser.degreeProgram && <p><strong>Degree:</strong> {currentUser.degreeProgram}</p>}
+          {currentUser.batchNumber && <p><strong>Batch:</strong> {currentUser.batchNumber}</p>}
           <p><strong>Role:</strong> {currentUser.role}</p>
-          {currentUser.role === 'staff' && (
-            <p><strong>Assigned Modules:</strong> SDTP</p>
-          )}
+          {currentUser.role === 'staff' && <p><strong>Assigned Modules:</strong> {modules.join(', ')}</p>}
         </div>
 
-        {currentUser.role === 'student' && (
+        {currentUser.role === 'student' ? (
           <>
             <div className="profile-section">
               <h3><FaBook /> Your Modules</h3>
-              {loading ? (
-                <p>Loading modules...</p>
-              ) : error ? (
-                <p className="error">{error}</p>
-              ) : modules.length > 0 ? (
+              {loading ? <p>Loading modules...</p> : 
+               error ? <p className="error">{error}</p> : 
+               modules.length > 0 ? (
                 <ul className="module-list">
-                  {modules.map((module) => (
-                    <li key={module}>{module}</li>
-                  ))}
+                  {modules.map((module) => <li key={module}>{module}</li>)}
                 </ul>
-              ) : (
-                <p>No modules found</p>
-              )}
+              ) : <p>No modules found</p>}
             </div>
 
             <div className="profile-section">
@@ -345,19 +403,17 @@ function Profile() {
                   {studentAppointments.map((appt) => (
                     <div 
                       key={appt.id} 
-                      className={`appointment-card status-${appt.status.toLowerCase()} ${!appt.studentViewed && appt.status !== 'Pending' ? 'unread' : ''}`}
+                      className={`appointment-card status-${appt.status.toLowerCase()} ${
+                        !appt.studentViewed && appt.status !== 'Pending' ? 'unread' : ''
+                      }`}
                       onClick={() => markAsViewed(appt.id)}
                     >
                       <div className="appointment-header">
                         <h4>{appt.module} with {appt.lecturerName}</h4>
                         <span className={`status-badge ${appt.status.toLowerCase()}`}>
-                          {appt.status === 'Pending' ? (
-                            <FaSpinner className="spinner" />
-                          ) : appt.status === 'Approved' ? (
-                            <FaCheckCircle />
-                          ) : (
-                            <FaExclamationCircle />
-                          )}
+                          {appt.status === 'Pending' ? <FaSpinner className="spinner" /> :
+                           appt.status === 'Approved' ? <FaCheckCircle /> :
+                           <FaExclamationCircle />}
                           {appt.status}
                         </span>
                       </div>
@@ -368,17 +424,19 @@ function Profile() {
                         
                         {appt.status !== 'Pending' && (
                           <>
-                            <p><strong>Lecturer Response:</strong> {appt.lecturerReply}</p>
-                            <p><small>Updated: {appt.updatedAt?.toDate().toLocaleString()}</small></p>
+                            <p className="lecturer-response">
+                              <strong>Lecturer Response:</strong> {appt.lecturerReply}
+                            </p>
+                            <p className="response-time">
+                              <small>Updated: {formatDateTime(appt.updatedAt)}</small>
+                            </p>
                           </>
                         )}
                       </div>
                     </div>
                   ))}
                 </div>
-              ) : (
-                <p>No appointments booked yet</p>
-              )}
+              ) : <p>No appointments booked yet</p>}
             </div>
 
             <div className="profile-section">
@@ -404,9 +462,25 @@ function Profile() {
                     </div>
                   ) : (
                     <>
-                      <h3>Book SDTP Appointment</h3>
+                      <h3>Book Appointment</h3>
                       {error && <p className="error">{error}</p>}
                       <form onSubmit={handleAppointmentSubmit}>
+                        <div className="form-group">
+                          <label><FaBook /> Module:</label>
+                          <select
+                            value={selectedModule}
+                            onChange={(e) => setSelectedModule(e.target.value)}
+                            required
+                          >
+                            <option value="">Select a module</option>
+                            {modules.map((module) => (
+                              <option key={module} value={module}>
+                                {module}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
                         <div className="form-group">
                           <label><FaCalendarAlt /> Date:</label>
                           <input
@@ -446,11 +520,7 @@ function Profile() {
                           disabled={submitting}
                           className="btn-submit"
                         >
-                          {submitting ? (
-                            <>
-                              <FaSpinner className="spinner" /> Submitting...
-                            </>
-                          ) : 'Submit Appointment'}
+                          {submitting ? <><FaSpinner className="spinner" /> Submitting...</> : 'Submit Appointment'}
                         </button>
                       </form>
                     </>
@@ -459,9 +529,7 @@ function Profile() {
               )}
             </div>
           </>
-        )}
-
-        {currentUser.role === 'staff' && (
+        ) : (
           <>
             <div className="profile-section">
               <h3><FaCalendarAlt /> Appointment Requests</h3>
@@ -518,15 +586,29 @@ function Profile() {
                         <div className="appointment-actions">
                           <button 
                             onClick={() => handleApproveAppointment(appt.id)}
+                            disabled={processingAppointment === appt.id}
                             className="btn-approve"
                           >
-                            <FaCheck /> Approve
+                            {processingAppointment === appt.id ? (
+                              <FaSpinner className="spinner" />
+                            ) : (
+                              <>
+                                <FaCheck /> Approve
+                              </>
+                            )}
                           </button>
                           <button 
                             onClick={() => handleRejectAppointment(appt.id)}
+                            disabled={processingAppointment === appt.id}
                             className="btn-reject"
                           >
-                            <FaTimes /> Reject
+                            {processingAppointment === appt.id ? (
+                              <FaSpinner className="spinner" />
+                            ) : (
+                              <>
+                                <FaTimes /> Reject
+                              </>
+                            )}
                           </button>
                         </div>
                       )}
