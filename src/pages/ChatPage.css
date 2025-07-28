@@ -54,6 +54,7 @@
 
 .chat-bubble {
   max-width: 70%;
+  min-width: 20%;
   padding: 10px 15px;
   border-radius: 20px;
   word-wrap: break-word;
@@ -70,6 +71,20 @@
 .chat-bubble.other {
   background-color: #e0e0e0;
   color: #333;
+  align-self: flex-start;
+  border-top-left-radius: 0;
+}
+
+.chat-bubble.me.staff {
+  background-color: #00843D;
+  color: #ffffff;
+  align-self: flex-end;
+  border-top-right-radius: 0;
+}
+
+.chat-bubble.other.staff {
+  background-color: #00843D;
+  color: #ffffff;
   align-self: flex-start;
   border-top-left-radius: 0;
 }
@@ -165,6 +180,14 @@
   font-size: 14px;
 }
 
+.initials-circle.staff{
+  background-color: #00843D;
+}
+
+.initials-circle.student{
+  background-color: #3B82F6;
+}
+
 .reply-preview {
   background-color: #f0f0f0;
   border-left: 4px solid #007bff;
@@ -227,6 +250,10 @@
   color: white;
 }
 
+.delete-btn.staff {
+  color: #5cff6a85;
+}
+
 .reply-btn {
   background: none;
   border: none;
@@ -260,6 +287,10 @@
   color: #5cabffa4;
 }
 
+.align-left .action-icons .reply-btn.staff {
+  color: #5cff6a85;
+}
+
 .align-left .action-icons .reply-btn:hover{
   color: white;
 }
@@ -279,6 +310,10 @@
 
 .delete-btn {
   color: #5cabffa4;
+}
+
+.delete-btn.staff {
+  color: #5cff6a85;
 }
 
 .delete-btn:hover {
@@ -367,8 +402,11 @@
 }
 
 .vote-block {
-  width: 250px;
-  padding: 10px 0;
+  padding: 12px;
+  border-radius: 8px;
+  margin: 8px 0;
+  width: 100%;
+  width: 300px;
 }
 
 /* Container label for each checkbox option */
@@ -414,6 +452,7 @@
 /* Optional: keep text and count spaced nicely */
 .vote-opt-count {
   display: flex;
+  justify-content: space-between;
   align-items: center;
   width: 100%;
 }

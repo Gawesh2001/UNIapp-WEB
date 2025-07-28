@@ -24,6 +24,8 @@ import { Cloudinary } from "@cloudinary/url-gen";
 import { AdvancedImage } from '@cloudinary/react';
 import { toast } from "react-toastify";
 import { Filter } from 'bad-words';
+import ChatBubble from "../components/ChatBubble";
+import ChatInput from "../components/ChatInput";
 
 
 const cld = new Cloudinary({
@@ -62,6 +64,7 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
   const fileInputRef = useRef(null);
   const [selectedImage, setSelectedImage] = useState(null);
   const [reportingMessage, setReportingMessage] = useState(null);
+  const [usersById, setUsersById] = useState({});
 
 
   useEffect(() => {
@@ -326,6 +329,11 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
     return () => unsubscribe();
   }, [userFilter]);
 
+  useEffect(() => {
+    const mapped = Object.fromEntries(sidebarUsers.map(user => [user.id, user]));
+    setUsersById(mapped);
+  }, [sidebarUsers]);
+
   const handleInputChange = (e) => {
     const value = e.target.value;
     setNewMessage(value);
@@ -396,7 +404,7 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
       (msg) =>
         (msg.msg?.includes(`@${userDetails.name}`) ||
           msg.replyTo?.name === userDetails.name) &&
-        msg.senderId !== userDetails.email
+        msg.senderId !== userDetails.id
     );
 
     setMentionQueue(unseenMentions);
@@ -557,9 +565,21 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
     }
 
     if (msg.type === "vote") {
+      const isMyVote = msg.senderId === userDetails?.id;
+      const isStaffVote = usersById?.[msg.senderId]?.role === "staff";
+
+      const voteBlockClass = [
+        "vote-block",
+        isMyVote ? "me" : "other",
+        isStaffVote ? "staff" : ""
+      ].filter(Boolean).join(" ");
+
       return (
-        <div className="vote-block">
-          <strong>{msg.question}</strong>
+        <div className={voteBlockClass}>
+          <div className="vote-header">
+            <strong>{msg.question}</strong>
+          </div>
+
           {msg.options.map((opt, idx) => {
             const voteCount = Object.values(msg.votes || {}).filter((userVotes) => {
               if (msg.allowMultiple) {
@@ -584,13 +604,19 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
                   name={`vote-${msg.id}`}
                   checked={isChecked || false}
                   onChange={() => handleVote(msg.id, idx)}
+                // Removed the disabled={isMyVote} condition
                 />
-                {opt}
-                {totalVotes > 0 && (
-                  <span className="vote-percent">
-                    {voteCount} vote{voteCount !== 1 ? "s" : ""}
-                  </span>
-                )}
+                <div className="vote-opt-count">
+                  <span className="option-text">{opt}</span>
+                  {totalVotes > 0 && (
+                    <span className="vote-stats">
+                      <span className="vote-bar" style={{ width: `${percent}%` }}></span>
+                      <span className="vote-count">
+                        {voteCount} vote{voteCount !== 1 ? "s" : ""}
+                      </span>
+                    </span>
+                  )}
+                </div>
               </label>
             );
           })}
@@ -624,66 +650,25 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
 
         <div className="chat-messages" ref={chatBoxRef}>
           {messages.map((msg) => (
-            <div
-              key={msg.id}
-              id={`msg-${msg.id}`}
-              ref={msg.id === lastSeenMessageId ? lastSeenRef : null}
-              className={`chat-bubble ${msg.senderId === userDetails?.id ? "me" : "other"}`}
-            >
-              <div className="chat-name">{msg.name}</div>
-
-              {msg.replyTo && (
-                <div className="reply-reference">
-                  <strong>{msg.replyTo.name}</strong>: {msg.replyTo.msg}
-                </div>
-              )}
-
-              {renderMessageContent(msg)}
-
-              <div
-                className={`time-dlt-rep ${msg.senderId === userDetails?.id ? "align-left" : "align-right"}`}
-              >
-                <div className="action-icons">
-                  {msg.senderId === userDetails?.id && (
-                    <>
-                      <FaTrash
-                        className="delete-btn"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setConfirmDeleteId(msg.id);
-                        }}
-                      />
-                    </>
-                  )}
-
-                  {msg.senderId !== userDetails?.id && (
-                    <FaFlag className="report-btn"
-                      onClick={() =>
-                        setReportingMessage(msg)
-                      }
-                    />
-                  )}
-
-
-                  <FaReply className="reply-btn" onClick={() => setReplyTo(msg)} />
-                </div>
-
-                {msg.time && (
-                  <div className="chat-time">
-                    {msg.time.toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </div>
-                )}
-              </div>
-            </div>
+            <ChatBubble
+              key={msg.id}  // Changed from message.id to msg.id
+              msg={msg}     // Changed from message to msg
+              lastSeenMessageId={lastSeenMessageId}
+              lastSeenRef={lastSeenRef}
+              userDetails={userDetails}  // Changed from currentUser to userDetails (since that's what you have in state)
+              usersById={usersById}
+              renderMessageContent={renderMessageContent}
+              setConfirmDeleteId={setConfirmDeleteId}
+              setReportingMessage={setReportingMessage}
+              setReplyTo={setReplyTo}
+            />
           ))}
           <div ref={chatEndRef} />
           {showVoteForm && (
             <VoteMessage
               onClose={() => setShowVoteForm(false)}
               userDetails={userDetails}
+              usersById={usersById}
               chatPath={chatPath}
               title={title}
             />
@@ -726,82 +711,32 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
 
         {renderImagePreview()}
 
-        <div className="chat-input-container" style={{ position: "relative" }}>
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleImageChange}
-            accept="image/*"
-            style={{ display: 'none' }}
-            disabled={isUploading}
-          />
-          <button
-            className="image-upload-btn"
-            onClick={() => fileInputRef.current.click()}
-            disabled={isUploading}
-          >
-            📤
-          </button>
-
-          <input
-            ref={inputRef}
-            type="text"
-            className="chat-input"
-            placeholder="Type a message..."
-            value={newMessage}
-            onChange={handleInputChange}
-            onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-            disabled={isUploading}
-          />
-          <button
-            className="vote-button"
-            onClick={() => setShowVoteForm(true)}
-            disabled={isUploading}
-          >
-            📊
-          </button>
-          <button
-            className="send-button"
-            onClick={sendMessage}
-            disabled={isUploading}
-          >
-            {isUploading ? 'Sending...' : 'Send'}
-          </button>
-
-          {showMentionList && mentionSuggestions.length > 0 && (
-            <ul className="mention-suggestions">
-              {mentionSuggestions.map((user) => (
-                <li
-                  key={user.id}
-                  onClick={() => handleMentionClick(user)}
-                  className="mention-suggestion-item"
-                >
-                  <span className="initials-circle">
-                    {user.name
-                      .split(" ")
-                      .map((word) => word[0])
-                      .join("")
-                      .toUpperCase()}
-                  </span>
-                  {user.name}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+        <ChatInput
+          newMessage={newMessage}
+          setNewMessage={setNewMessage}
+          sendMessage={sendMessage}
+          isUploading={isUploading}
+          setImageToUpload={setImageToUpload}
+          setReplyTo={setReplyTo}
+          replyTo={replyTo}
+          sidebarUsers={sidebarUsers}
+          userDetails={userDetails}
+          setShowVoteForm={setShowVoteForm}
+        />
       </div>
       <div className="chat-sidebar">
         <h3>Members of {title ? title : "Loading..."}</h3>
         <ul>
           {sidebarUsers.map((user) => (
             <li key={user.id} className="sidebar-user">
-              <span className="initials-circle">
+              <span className={`initials-circle${user.role === "staff" ? " staff" : ""}`}>
                 {user.name
                   .split(" ")
                   .map((word) => word[0])
                   .join("")
                   .toUpperCase()}
               </span>
+
               {user.name}
             </li>
           ))}
@@ -836,67 +771,67 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
       )}
 
       {reportingMessage && (
-    <div className="modal-overlay" onClick={() => setReportingMessage(null)}>
-        <div className="delete-confirm-overlay">
+        <div className="modal-overlay" onClick={() => setReportingMessage(null)}>
+          <div className="delete-confirm-overlay">
             <div className="delete-confirm-popup" onClick={(e) => e.stopPropagation()}>
-                <span>Report this message as inappropriate?</span>
+              <span>Report this message as inappropriate?</span>
 
-                {/* 👤 Sender Info */}
-                <div className="report-sender-name">
-                    <strong>From:</strong> {reportingMessage.name || "Unknown User"}
-                </div>
+              {/* 👤 Sender Info */}
+              <div className="report-sender-name">
+                <strong>From:</strong> {reportingMessage.name || "Unknown User"}
+              </div>
 
-                {/* 🧾 Message Preview */}
-                <div className="report-preview">
-                    {reportingMessage.imageUrl ? (
-                        <img
-                            src={reportingMessage.imageUrl}
-                            className="report-image-preview"
-                            alt="Reported"
-                            
-                            onError={(e) => (e.target.style.display = "none")}
-                        />
-                    ) : reportingMessage.type === "vote" ? (
-                        <div className="report-text-preview">
-                            <strong>Poll:</strong> {reportingMessage.question}
-                        </div>
-                    ) : reportingMessage.msg ? (
-                        <div className="report-text-preview">
-                            {reportingMessage.msg.length > 100
-                                ? reportingMessage.msg.slice(0, 100) + "..."
-                                : reportingMessage.msg}
-                        </div>
-                    ) : (
-                        <div className="report-text-preview">[No content]</div>
-                    )}
-                </div>
+              {/* 🧾 Message Preview */}
+              <div className="report-preview">
+                {reportingMessage.imageUrl ? (
+                  <img
+                    src={reportingMessage.imageUrl}
+                    className="report-image-preview"
+                    alt="Reported"
 
-                <div className="popup-buttons">
-                    <button
-                        className="confirm-btn"
-                        onClick={() => {
-                            reportMessage({
-                                reportedUserId: reportingMessage.senderId,
-                                reportedBy: userDetails.id,
-                                messageId: reportingMessage.id,
-                                reason: "Inappropriate content",
-                            });
-                            setReportingMessage(null);
-                        }}
-                    >
-                        Report
-                    </button>
-                    <button
-                        className="cancel-btn"
-                        onClick={() => setReportingMessage(null)}
-                    >
-                        Cancel
-                    </button>
-                </div>
+                    onError={(e) => (e.target.style.display = "none")}
+                  />
+                ) : reportingMessage.type === "vote" ? (
+                  <div className="report-text-preview">
+                    <strong>Poll:</strong> {reportingMessage.question}
+                  </div>
+                ) : reportingMessage.msg ? (
+                  <div className="report-text-preview">
+                    {reportingMessage.msg.length > 100
+                      ? reportingMessage.msg.slice(0, 100) + "..."
+                      : reportingMessage.msg}
+                  </div>
+                ) : (
+                  <div className="report-text-preview">[No content]</div>
+                )}
+              </div>
+
+              <div className="popup-buttons">
+                <button
+                  className="confirm-btn"
+                  onClick={() => {
+                    reportMessage({
+                      reportedUserId: reportingMessage.senderId,
+                      reportedBy: userDetails.id,
+                      messageId: reportingMessage.id,
+                      reason: "Inappropriate content",
+                    });
+                    setReportingMessage(null);
+                  }}
+                >
+                  Report
+                </button>
+                <button
+                  className="cancel-btn"
+                  onClick={() => setReportingMessage(null)}
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
+          </div>
         </div>
-    </div>
-)}
+      )}
 
 
 

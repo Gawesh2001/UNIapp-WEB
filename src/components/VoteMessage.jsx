@@ -5,11 +5,19 @@ import { db } from "../firebase";
 import "./VoteMessage.css";
 import { FaPlus, FaTimes } from "react-icons/fa";
 
-const VoteMessage = ({ onClose, userDetails, chatPath, title }) => {
+const VoteMessage = ({ onClose, userDetails, usersById, chatPath, title }) => {
   const [question, setQuestion] = useState("");
   const [options, setOptions] = useState(["", ""]);
   const [allowMultiple, setAllowMultiple] = useState(false);  // <-- NEW STATE
 
+   // Get the variables you need
+  const isMe = (senderId) => senderId === userDetails?.id;
+  const amIStaff = userDetails?.role === "staff";
+  const sender = usersById?.[userDetails?.id]; // This might need adjustment based on your data structure
+  const isSenderStaff = sender?.role === "staff";
+  const isStaff = isSenderStaff; // This is the same as isSenderStaff
+
+    
   const handleOptionChange = (index, value) => {
     const updated = [...options];
     updated[index] = value;
@@ -20,6 +28,8 @@ const VoteMessage = ({ onClose, userDetails, chatPath, title }) => {
 
   const sendPoll = async () => {
     if (!question.trim() || options.some((opt) => !opt.trim())) return;
+
+    onClose();
 
     const groupId = chatPath.join("_");
     const customId = `${groupId
@@ -36,7 +46,7 @@ const VoteMessage = ({ onClose, userDetails, chatPath, title }) => {
       allowMultiple,  // <-- save this flag to Firestore
       votes: {}, // votes object will hold user votes as arrays for multiple options
       name: userDetails.name,
-      senderId: userDetails.email,
+      senderId: userDetails.id,
       time: serverTimestamp(),
     });
 
@@ -44,7 +54,7 @@ const VoteMessage = ({ onClose, userDetails, chatPath, title }) => {
     const seenDocRef = doc(db, "UserDetails", userDetails.id, "chatLastSeen", title);
     await setDoc(seenDocRef, { lastSeenId: customId }, { merge: true });
 
-    onClose();
+    
   };
 
   const removeOption = (index) => {
