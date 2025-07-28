@@ -214,14 +214,19 @@ function Profile() {
         time,
         reason,
         faculty: currentUser.faculty,
+        degreeProgram: currentUser.degreeProgram,
+        batchNumber: currentUser.batchNumber,
         status: 'Pending',
         lecturerId: lecturerData.uid,
         lecturerName: lecturerData.name,
         lecturerEmail: lecturerData.email,
         createdAt: serverTimestamp(),
         lecturerReply: '',
-        studentViewed: false
+        studentViewed: false,
+        updatedAt: serverTimestamp()
       };
+    
+      console.log("Creating appointment with data:", appointmentData);
 
       await addDoc(collection(db, 'Appointments'), appointmentData);
       setSuccess(true);
