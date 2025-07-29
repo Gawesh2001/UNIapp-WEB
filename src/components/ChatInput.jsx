@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { FaTimes } from 'react-icons/fa';
 import { toast } from 'react-toastify';
+import AnnouncementMessage from "./AnnouncementMessage";
 
 const ChatInput = ({
   newMessage,
@@ -14,6 +15,7 @@ const ChatInput = ({
   sidebarUsers,
   userDetails,
   setShowVoteForm,
+  setShowAnnouncementModal,
   handleVote,
 }) => {
   const inputRef = useRef(null);
@@ -21,6 +23,7 @@ const ChatInput = ({
   const [mentionQuery, setMentionQuery] = useState('');
   const [showMentionList, setShowMentionList] = useState(false);
   const [mentionSuggestions, setMentionSuggestions] = useState([]);
+
 
   const handleInputChange = (e) => {
     const value = e.target.value;
@@ -137,6 +140,17 @@ const ChatInput = ({
         >
           📤
         </button>
+
+        {userDetails?.role === "staff" &&
+          (<button
+            className="image-upload-btn"
+            onClick={() => setShowAnnouncementModal(true)}
+            title="Make Announcement"
+          >
+            📢
+          </button>)
+        }
+
 
         <input
           ref={inputRef}

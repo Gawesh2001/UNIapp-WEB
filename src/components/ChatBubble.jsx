@@ -2,6 +2,11 @@ import { FaTrash, FaReply, FaFlag } from "react-icons/fa";
 import { AdvancedImage } from '@cloudinary/react';
 import { Cloudinary } from "@cloudinary/url-gen";
 import React from "react";
+import { useState } from "react";
+import { FaThumbsUp } from "react-icons/fa";
+import { doc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
+import { db } from "../firebase";
+
 
 const cld = new Cloudinary({
     cloud: {
@@ -21,7 +26,8 @@ const ChatBubble = ({
     renderMessageContent,
     setConfirmDeleteId,
     setReportingMessage,
-    setReplyTo
+    setReplyTo,
+    chatPath
 }) => {
 
     const isMe = msg.senderId === userDetails?.id;
@@ -32,6 +38,21 @@ const ChatBubble = ({
 
 
     const bubbleClass = `chat-bubble ${msg.senderId === userDetails.id ? "me" : "other"}${isStaff ? " staff" : ""}`;
+    const myBubbleClass = isMe
+  ? `chat-bubble me${isStaff ? " staff" : ""}` // 'isStaff' refers to the current user
+  : null;
+
+    const [likes, setLikes] = useState(0);
+    const hasReacted = msg.reactions?.thumbsUp?.includes(userDetails.id);
+
+    const handleReactionToggle = async (messageId, userId, hasReacted) => {
+        const messageRef = doc(db, ...chatPath, messageId); // adjust collection name
+        await updateDoc(messageRef, {
+            [`reactions.thumbsUp`]: hasReacted
+                ? arrayRemove(userId)
+                : arrayUnion(userId)
+        });
+    };
 
 
     return (
@@ -41,7 +62,9 @@ const ChatBubble = ({
             ref={msg.id === lastSeenMessageId ? lastSeenRef : null}
             className={bubbleClass}
         >
+            {(!isMe) && (
             <div className="chat-name">{msg.name}</div>
+)}
 
             {msg.replyTo && (
                 <div className="reply-reference">
@@ -55,6 +78,7 @@ const ChatBubble = ({
                 className={`time-dlt-rep ${msg.senderId === userDetails?.id ? "align-left" : "align-right"}`}
             >
                 <div className="action-icons">
+  
                     {((isMe) || (isMe && amIStaff)) && (
                         <FaTrash
                             className={`delete-btn ${isStaff ? " staff" : ""}`}
@@ -84,6 +108,16 @@ const ChatBubble = ({
                                 onClick={() => setReplyTo(msg)}
                             />
                         )}
+
+                        {(!isMe && 
+                        <div className="reaction-wrapper" onClick={() => handleReactionToggle(msg.id, userDetails.id, hasReacted)}>
+                            <FaThumbsUp className={`thumbs-up-icon ${isSenderStaff ? "staff" : ""} ${hasReacted ? "active" : ""}`} />
+
+                            {msg.reactions?.thumbsUp?.length > 0 && (
+                                <span className={`reaction-count ${isSenderStaff ? "staff" : ""}`}>{msg.reactions.thumbsUp.length}</span>
+                            )}
+                        </div>
+                    )}
                 </div>
 
 

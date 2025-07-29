@@ -16,7 +16,7 @@ import {
   getDocs,
   addDoc
 } from "firebase/firestore";
-import { FaChevronCircleLeft, FaTrash, FaReply, FaTimes, FaFlag } from "react-icons/fa";
+import { FaChevronCircleLeft, FaTrash, FaReply, FaTimes, FaFlag, FaChevronCircleRight } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { nanoid } from "nanoid";
 import VoteMessage from "../components/VoteMessage";
@@ -26,6 +26,7 @@ import { toast } from "react-toastify";
 import { Filter } from 'bad-words';
 import ChatBubble from "../components/ChatBubble";
 import ChatInput from "../components/ChatInput";
+import AnnouncementMessage from "../components/AnnouncementMessage";
 
 
 const cld = new Cloudinary({
@@ -57,6 +58,8 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
   const [mentionQueue, setMentionQueue] = useState([]);
   const [mentionIndex, setMentionIndex] = useState(0);
   const [showVoteForm, setShowVoteForm] = useState(false);
+  const [showAnnouncementModal, setShowAnnouncementModal] = useState(false);
+
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const [imageToUpload, setImageToUpload] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -65,6 +68,10 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
   const [selectedImage, setSelectedImage] = useState(null);
   const [reportingMessage, setReportingMessage] = useState(null);
   const [usersById, setUsersById] = useState({});
+
+  const [currentAnnouncementIndex, setCurrentAnnouncementIndex] = useState(0);
+
+
 
 
   useEffect(() => {
@@ -106,6 +113,8 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
 
     return () => unsubscribe();
   }, [userDetails, chatPath]);
+
+  
 
   // Load lastSeenMessageId from user's subcollection
   useEffect(() => {
@@ -537,6 +546,13 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
   };
 
   const renderMessageContent = (msg) => {
+
+    const isMe = msg.senderId === userDetails?.id;
+  const amIStaff = userDetails?.role === "staff";
+  const sender = usersById?.[msg.senderId];
+  const isSenderStaff = sender?.role === "staff";
+  const isStaff = sender?.role === "staff";
+
     if (msg.imageUrl) {
       // Create a Cloudinary image instance with proper transformations
       const image = cld.image(msg.imageUrl.replace('https://res.cloudinary.com/dfnzttf4v/image/upload/', ''));
@@ -563,6 +579,34 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
         </div>
       );
     }
+
+    if (msg.type === "announcement") {
+      const isMyAnnouncement = isMe;
+const isStaffAnnouncement = isSenderStaff;
+
+      const senderName = usersById?.[msg.senderId]?.name || "Unknown";
+
+      const announcementClass = [
+        "announcement-block",
+        isMyAnnouncement ? "me" : "other",
+        isStaffAnnouncement ? "staff" : ""
+      ].filter(Boolean).join(" ");
+
+      return (
+        <div className={announcementClass}>
+          <div className="sender-name">
+            📢 <strong>{senderName}</strong>
+          </div>
+          <div className="announcement-header">
+            <strong>{msg.title}</strong>
+          </div>
+          <div className="announcement-body">
+            {msg.message}
+          </div>
+        </div>
+      );
+    }
+
 
     if (msg.type === "vote") {
       const isMyVote = msg.senderId === userDetails?.id;
@@ -598,7 +642,7 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
               : userVotes === idx;
 
             return (
-              <label key={idx} className="vote-option-label">
+              <label key={idx} className={`vote-option-label ${isSenderStaff ? "staff" : isMe ? "me" : ""}`}>
                 <input
                   type={msg.allowMultiple ? "checkbox" : "radio"}
                   name={`vote-${msg.id}`}
@@ -637,6 +681,43 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
     );
   };
 
+
+
+  const nowInSeconds = Math.floor(Date.now() / 1000);
+
+  const validAnnouncements = messages
+    .filter(
+      (msg) =>
+        msg.type === "announcement" &&
+        (!msg.expiresAt || msg.expiresAt.seconds > nowInSeconds)
+    )
+    .sort((a, b) => b.timestamp?.seconds - a.timestamp?.seconds);
+
+  const currentAnnouncement = validAnnouncements[currentAnnouncementIndex];
+
+
+
+  useEffect(() => {
+    if (validAnnouncements.length <= 1) return; // no need to auto-rotate
+
+    const interval = setInterval(() => {
+      setCurrentAnnouncementIndex((prevIndex) =>
+        (prevIndex + 1) % validAnnouncements.length
+      );
+    }, 10000); // change every 10 seconds
+
+    return () => clearInterval(interval); // cleanup
+  }, [validAnnouncements.length]);
+
+  const handleNextAnnouncement = () => {
+    setCurrentAnnouncementIndex((prevIndex) =>
+      (prevIndex + 1) % validAnnouncements.length
+    );
+  };
+
+  
+
+
   return (
     <div className="chat-page-wrapper">
       <div className="chat-container">
@@ -647,6 +728,28 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
           />
           <span className="faculty-text">{title || "Loading..."}</span>
         </div>
+
+        {currentAnnouncement && (
+          <div className="announcement-banner">
+            <div className="announcement-content">
+              <div className="announcement-header">
+                📢 <strong>{usersById?.[currentAnnouncement.senderId]?.name || "Unknown"}</strong>
+                
+              </div>
+              <div className="announcement-body">
+                <div className="banner-title">{currentAnnouncement.title}</div>
+                <div className="banner-message">{currentAnnouncement.message}</div>
+                  
+                </div>
+                <FaChevronCircleRight onClick={handleNextAnnouncement}
+                  className="announcement-next-btn"
+                  title="Next announcement" />
+
+            </div>
+          </div>
+        )}
+
+
 
         <div className="chat-messages" ref={chatBoxRef}>
           {messages.map((msg) => (
@@ -661,6 +764,7 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
               setConfirmDeleteId={setConfirmDeleteId}
               setReportingMessage={setReportingMessage}
               setReplyTo={setReplyTo}
+              chatPath={chatPath}
             />
           ))}
           <div ref={chatEndRef} />
@@ -674,6 +778,17 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
             />
           )}
         </div>
+
+        {showAnnouncementModal && (
+          <AnnouncementMessage
+            onClose={() => setShowAnnouncementModal(false)}
+            userDetails={userDetails}
+            usersById={usersById}
+            chatPath={chatPath}
+            title={title}
+          />
+        )}
+
 
         {replyTo && (
           <div className="reply-preview">
@@ -722,6 +837,7 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
           sidebarUsers={sidebarUsers}
           userDetails={userDetails}
           setShowVoteForm={setShowVoteForm}
+          setShowAnnouncementModal={setShowAnnouncementModal}
         />
       </div>
       <div className="chat-sidebar">
@@ -849,6 +965,8 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
           </div>
         </div>
       )}
+
+
     </div>
   );
 };
