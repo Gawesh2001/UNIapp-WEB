@@ -7,7 +7,8 @@ import Profile from "./pages/Profile";
 import ChatPageWrapper from "./components/ChatPageWrapper";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-
+import ModulePages from "./pages/ModulePage";
+import QnAPage from "./pages/QnAPage";
 
 function App() {
   return (
@@ -19,8 +20,10 @@ function App() {
         <Route path="/signup" element={<Signup />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/chatPage" element={<ChatPageWrapper />} />
+        <Route path="/modules/:moduleId" element={<ModulePages />} />
+        <Route path="/qna" element={<QnAPage />} />
       </Routes>
-      <ToastContainer 
+      <ToastContainer
         position="top-right"
         autoClose={3000}
         hideProgressBar={false}

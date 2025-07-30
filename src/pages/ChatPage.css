@@ -944,3 +944,11 @@
   transform: scale(1.2);
 }
 
+.staff-only-message {
+  padding: 1rem;
+  text-align: center;
+  background-color: #fff3cd;
+  color: #856404;
+  border-top: 1px solid #ffeeba;
+}
+

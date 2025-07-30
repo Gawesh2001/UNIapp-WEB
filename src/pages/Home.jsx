@@ -48,6 +48,7 @@ const Home = () => {
     degreeProgram: "",
     batchNumber: "",
   });
+  const [modules, setModules] = useState([]);
 
   const getInitials = (text) =>
     text
@@ -80,7 +81,7 @@ const Home = () => {
             createdBy: data.createdBy || "Admin"
           };
 
-          switch(data.category.toLowerCase()) {
+          switch (data.category.toLowerCase()) {
             case "special announcements":
               fetchedAnnouncements.special.push(announcement);
               break;
@@ -201,6 +202,37 @@ const Home = () => {
     };
   }, [isLoggedIn]);
 
+  useEffect(() => {
+    if (!userDetails.faculty || !userDetails.degreeProgram || !userDetails.batchNumber) return;
+
+    const fetchModules = async () => {
+      try {
+        const modulesRef = collection(
+          db,
+          "Faculties",
+          userDetails.faculty,
+          "Degrees",
+          userDetails.degreeProgram,
+          "Batches",
+          userDetails.batchNumber,
+          "Modules"
+        );
+        const snapshot = await getDocs(modulesRef);
+        const modulesList = snapshot.docs.map((doc) => ({
+          id: doc.id,
+
+        }));
+        console.log("Fetched modules:", modulesList); // ✅ Debug
+        setModules(modulesList);
+      } catch (error) {
+        console.error("Error fetching modules:", error);
+      }
+    };
+
+    fetchModules();
+  }, [userDetails]);
+
+
   return (
     <div className="dashboard-container" ref={containerRef}>
       {/* Announcement Details Popup */}
@@ -233,17 +265,17 @@ const Home = () => {
       <aside className="app-sidebar">
         <div className="sidebar-header">
           <div className="university-logo">
-            <img 
-              src="https://studyway-resources.s3.amazonaws.com/profilePictures/1669870901417.png" 
-              alt="NSBM Logo" 
+            <img
+              src="https://studyway-resources.s3.amazonaws.com/profilePictures/1669870901417.png"
+              alt="NSBM Logo"
             />
           </div>
           <h1>NSBM Portal</h1>
         </div>
-        
+
         <nav className="sidebar-nav">
           <ul>
-            <li 
+            <li
               className={activeMenu === "home" ? "active" : ""}
               onClick={() => setActiveMenu("home")}
             >
@@ -253,7 +285,7 @@ const Home = () => {
               </div>
               <div className="active-indicator"></div>
             </li>
-            <li 
+            <li
               className={activeMenu === "profile" ? "active" : ""}
               onClick={() => {
                 setActiveMenu("profile");
@@ -268,7 +300,7 @@ const Home = () => {
             </li>
           </ul>
         </nav>
-        
+
         <div className="sidebar-footer">
           <div className="user-mini-profile">
             {/* <div className="user-avatar">
@@ -291,9 +323,9 @@ const Home = () => {
         <header className="main-header">
           <div className="search-container">
             <FaSearch className="search-icon" />
-            <input 
-              type="text" 
-              placeholder="Search announcements..." 
+            <input
+              type="text"
+              placeholder="Search announcements..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -303,7 +335,7 @@ const Home = () => {
               </button>
             )}
           </div>
-          
+
           <div className="header-actions">
             <button className="notification-btn">
               <FaBell />
@@ -339,7 +371,7 @@ const Home = () => {
                 <FaEllipsisH />
               </button>
             </div>
-            
+
             <div className="communities-grid">
               {userDetails?.faculty && (
                 <NavLink
@@ -348,6 +380,7 @@ const Home = () => {
                     chatPath: ["Faculties", userDetails.faculty, "chat"],
                     title: userDetails.faculty,
                     userFilter: [{ field: "faculty", value: userDetails.faculty }],
+                    isStaffOnly: false,
                   }}
                   className="community-card faculty"
                 >
@@ -375,6 +408,7 @@ const Home = () => {
                     userFilter: [
                       { field: "degreeProgram", value: userDetails.degreeProgram },
                     ],
+                    isStaffOnly: false,
                   }}
                   className="community-card degree"
                 >
@@ -406,6 +440,7 @@ const Home = () => {
                     userFilter: [
                       { field: "batchNumber", value: userDetails.batchNumber },
                     ],
+                    isStaffOnly: false,
                   }}
                   className="community-card batch"
                 >
@@ -419,6 +454,41 @@ const Home = () => {
               )}
             </div>
           </section>
+
+          {/* Modules Section */}
+<section className="modules-section">
+  <div className="section-header">
+    <h2>
+      📚 Modules
+    </h2>
+  </div>
+  <ul className="modules-grid">
+    {modules.length === 0 && <li className="empty-text">No modules found.</li>}
+    {modules.map((mod) => (
+      <li
+        key={mod.id}
+        className="module-card"
+        onClick={() => navigate(`/modules/${mod.id}`)}
+      >
+        <div className="card-bg"></div>
+        <div className="card-initials">{mod.id &&
+  mod.id
+    .split(" ")
+    .filter(word => !["and", "the", "&", "of", "in", "at", "on", "to", "a", "an"].includes(word.toLowerCase()))
+    .map(word => word[0])
+    .join("")
+    .toUpperCase()
+}
+</div>
+        <div className="card-content">
+          <h3>{mod.id || mod.M_ID || "Unnamed Module"}</h3>
+          
+        </div>
+      </li>
+    ))}
+  </ul>
+</section>
+
 
           {/* Announcements Section */}
           <section className="announcements-section">
@@ -447,8 +517,8 @@ const Home = () => {
                   </h3>
                   <div className="announcements-grid">
                     {filterAnnouncements(announcements.special).map(announcement => (
-                      <div 
-                        key={announcement.id} 
+                      <div
+                        key={announcement.id}
                         className="announcement-card special"
                         onClick={() => openAnnouncementDetails(announcement)}
                       >
@@ -478,8 +548,8 @@ const Home = () => {
                   </h3>
                   <div className="announcements-grid">
                     {filterAnnouncements(announcements.academic).map(announcement => (
-                      <div 
-                        key={announcement.id} 
+                      <div
+                        key={announcement.id}
                         className="announcement-card academic"
                         onClick={() => openAnnouncementDetails(announcement)}
                       >
@@ -509,8 +579,8 @@ const Home = () => {
                   </h3>
                   <div className="announcements-grid">
                     {filterAnnouncements(announcements.event).map(announcement => (
-                      <div 
-                        key={announcement.id} 
+                      <div
+                        key={announcement.id}
                         className="announcement-card event"
                         onClick={() => openAnnouncementDetails(announcement)}
                       >
@@ -540,8 +610,8 @@ const Home = () => {
                   </h3>
                   <div className="announcements-grid">
                     {filterAnnouncements(announcements.facility).map(announcement => (
-                      <div 
-                        key={announcement.id} 
+                      <div
+                        key={announcement.id}
                         className="announcement-card facility"
                         onClick={() => openAnnouncementDetails(announcement)}
                       >

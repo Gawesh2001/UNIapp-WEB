@@ -16,7 +16,7 @@ import {
   getDocs,
   addDoc
 } from "firebase/firestore";
-import { FaChevronCircleLeft, FaTrash, FaReply, FaTimes, FaFlag, FaChevronCircleRight } from "react-icons/fa";
+import { FaChevronCircleLeft, FaTimes, FaChevronCircleRight } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { nanoid } from "nanoid";
 import VoteMessage from "../components/VoteMessage";
@@ -38,7 +38,7 @@ const cld = new Cloudinary({
   }
 });
 
-const ChatGroup = ({ chatPath, title, userFilter }) => {
+const ChatGroup = ({ chatPath, title, userFilter, isStaffOnly }) => {
   const navigate = useNavigate();
   const [userDetails, setUserDetails] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -70,9 +70,6 @@ const ChatGroup = ({ chatPath, title, userFilter }) => {
   const [usersById, setUsersById] = useState({});
 
   const [currentAnnouncementIndex, setCurrentAnnouncementIndex] = useState(0);
-
-
-
 
   useEffect(() => {
     const user = UserSession.currentUser;
@@ -826,19 +823,26 @@ const isStaffAnnouncement = isSenderStaff;
 
         {renderImagePreview()}
 
-        <ChatInput
-          newMessage={newMessage}
-          setNewMessage={setNewMessage}
-          sendMessage={sendMessage}
-          isUploading={isUploading}
-          setImageToUpload={setImageToUpload}
-          setReplyTo={setReplyTo}
-          replyTo={replyTo}
-          sidebarUsers={sidebarUsers}
-          userDetails={userDetails}
-          setShowVoteForm={setShowVoteForm}
-          setShowAnnouncementModal={setShowAnnouncementModal}
-        />
+        {isStaffOnly && userDetails?.role === "student" ? (
+  <div className="staff-only-message">
+    <p>🔒 Only lecturers or admins can send messages in this chat.</p>
+  </div>
+) : (
+  <ChatInput
+    newMessage={newMessage}
+    setNewMessage={setNewMessage}
+    sendMessage={sendMessage}
+    isUploading={isUploading}
+    setImageToUpload={setImageToUpload}
+    setReplyTo={setReplyTo}
+    replyTo={replyTo}
+    sidebarUsers={sidebarUsers}
+    userDetails={userDetails}
+    setShowVoteForm={setShowVoteForm}
+    setShowAnnouncementModal={setShowAnnouncementModal}
+  />
+)}
+
       </div>
       <div className="chat-sidebar">
         <h3>Members of {title ? title : "Loading..."}</h3>
