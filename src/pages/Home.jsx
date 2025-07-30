@@ -16,9 +16,10 @@ import {
   FaChevronRight,
   FaHome,
   FaUser,
-  FaCog,
-  FaEnvelope,
   FaUserCircle,
+  FaTimesCircle,
+  FaCommentAlt,
+  FaEllipsisH
 } from "react-icons/fa";
 import "./Home.css";
 import UserSession from "../utils/UserSession";
@@ -38,6 +39,7 @@ const Home = () => {
     facility: []
   });
   const [loading, setLoading] = useState(true);
+  const [selectedAnnouncement, setSelectedAnnouncement] = useState(null);
   const [userDetails, setUserDetails] = useState({
     name: "",
     email: "",
@@ -182,6 +184,16 @@ const Home = () => {
     });
   };
 
+  const openAnnouncementDetails = (announcement) => {
+    setSelectedAnnouncement(announcement);
+    document.body.style.overflow = "hidden";
+  };
+
+  const closeAnnouncementDetails = () => {
+    setSelectedAnnouncement(null);
+    document.body.style.overflow = "auto";
+  };
+
   useEffect(() => {
     window.addEventListener("popstate", handleBackButton);
     return () => {
@@ -191,106 +203,144 @@ const Home = () => {
 
   return (
     <div className="dashboard-container" ref={containerRef}>
-      {/* University Header */}
-      <div className="university-header">
-        <div className="university-logo-container">
-          <img
-            src="https://studyway-resources.s3.amazonaws.com/profilePictures/1669870901417.png"
-            alt="NSBM Logo"
-            className="university-logo"
-          />
-          <div className="university-text">
-            <h1>NSBM Green University</h1>
-            <p className="welcome-text">Welcome to the University Portal</p>
+      {/* Announcement Details Popup */}
+      {selectedAnnouncement && (
+        <div className="announcement-modal">
+          <div className="modal-overlay" onClick={closeAnnouncementDetails}></div>
+          <div className="modal-content">
+            <button className="modal-close" onClick={closeAnnouncementDetails}>
+              <FaTimesCircle />
+            </button>
+            <div className={`modal-header ${selectedAnnouncement.type.replace(/\s+/g, '-')}`}>
+              <div className="header-badge">
+                <span>{selectedAnnouncement.type}</span>
+                {selectedAnnouncement.urgent && <span className="urgent-badge">URGENT</span>}
+              </div>
+              <h2>{selectedAnnouncement.title}</h2>
+              <div className="header-meta">
+                <span className="meta-date">{selectedAnnouncement.date}</span>
+                <span className="meta-author">Posted by {selectedAnnouncement.createdBy}</span>
+              </div>
+            </div>
+            <div className="modal-body">
+              <p>{selectedAnnouncement.content}</p>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
-      {/* Top Navigation Bar */}
-      <nav className="top-nav-bar">
-        <div className="nav-container">
+      {/* Sidebar Navigation */}
+      <aside className="app-sidebar">
+        <div className="sidebar-header">
+          <div className="university-logo">
+            <img 
+              src="https://studyway-resources.s3.amazonaws.com/profilePictures/1669870901417.png" 
+              alt="NSBM Logo" 
+            />
+          </div>
+          <h1>NSBM Portal</h1>
+        </div>
+        
+        <nav className="sidebar-nav">
           <ul>
-            <li
+            <li 
               className={activeMenu === "home" ? "active" : ""}
               onClick={() => setActiveMenu("home")}
             >
-              <FaHome className="nav-icon" />
-              <span>Home</span>
+              <div className="nav-item-content">
+                <FaHome className="nav-icon" />
+                <span>Home</span>
+              </div>
+              <div className="active-indicator"></div>
             </li>
-            <li
+            <li 
               className={activeMenu === "profile" ? "active" : ""}
               onClick={() => {
                 setActiveMenu("profile");
                 navigateToProfile();
               }}
             >
-              <FaUser className="nav-icon" />
-              <span>Profile</span>
-            </li>
-            <li
-              className={activeMenu === "messages" ? "active" : ""}
-              onClick={() => setActiveMenu("messages")}
-            >
-              <FaEnvelope className="nav-icon" />
-              <span>Messages</span>
-            </li>
-            <li
-              className={activeMenu === "settings" ? "active" : ""}
-              onClick={() => setActiveMenu("settings")}
-            >
-              <FaCog className="nav-icon" />
-              <span>Settings</span>
+              <div className="nav-item-content">
+                <FaUser className="nav-icon" />
+                <span>Profile</span>
+              </div>
+              <div className="active-indicator"></div>
             </li>
           </ul>
-          <div className="logout-container" onClick={handleLogout}>
-            <FaSignOutAlt className="nav-icon" />
-            <span>Logout</span>
-          </div>
-        </div>
-      </nav>
-
-      {/* Main Content */}
-      <div className="main-content">
-        {/* Top Bar */}
-        <header className="top-bar">
-          <div className="top-bar-content">
-            <div className="search-container">
-              <div className="search-bar">
-                <FaSearch className="search-icon" />
-                <input
-                  type="text"
-                  placeholder="Search announcements..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-                {searchQuery && (
-                  <button
-                    className="clear-search"
-                    onClick={() => setSearchQuery("")}
-                  >
-                    <FaTimes />
-                  </button>
-                )}
-              </div>
-            </div>
-
+        </nav>
+        
+        <div className="sidebar-footer">
+          <div className="user-mini-profile">
+            {/* <div className="user-avatar">
+              {userDetails.name ? getInitials(userDetails.name) : <FaUserCircle />}
+            </div> */}
             <div className="user-info">
-              <div className="user-greeting">
-                <span>Welcome back,</span>
-                <span className="user-name">{userDetails.name}</span>
-              </div>
-              <button className="profile-btn" onClick={navigateToProfile}>
-                <FaUserCircle className="profile-icon" />
-              </button>
+              <span className="username">{userDetails.name}</span>
+              <span className="user-role">{userDetails.role}</span>
             </div>
+          </div>
+          <button className="logout-btn" onClick={handleLogout}>
+            <FaSignOutAlt />
+          </button>
+        </div>
+      </aside>
+
+      {/* Main Content Area */}
+      <main className="app-main">
+        {/* Top Navigation */}
+        <header className="main-header">
+          <div className="search-container">
+            <FaSearch className="search-icon" />
+            <input 
+              type="text" 
+              placeholder="Search announcements..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            {searchQuery && (
+              <button className="clear-search" onClick={() => setSearchQuery("")}>
+                <FaTimes />
+              </button>
+            )}
+          </div>
+          
+          <div className="header-actions">
+            <button className="notification-btn">
+              <FaBell />
+              <span className="notification-badge">3</span>
+            </button>
+            <button className="profile-btn" onClick={navigateToProfile}>
+              <div className="profile-avatar">
+                {userDetails.name ? getInitials(userDetails.name) : <FaUserCircle />}
+              </div>
+            </button>
           </div>
         </header>
 
-        <div className="content-container">
-          {/* Chat Groups */}
-          <div className="chat-groups-container">
-            <h2 className="chat-groups-title">Your Communities</h2>
-            <div className="chat-groups">
+        {/* Dashboard Content */}
+        <div className="dashboard-content">
+          {/* Welcome Banner */}
+          <div className="welcome-banner">
+            <div className="banner-content">
+              <h2>Welcome back, {userDetails.name}!</h2>
+              <p>Here's what's happening at NSBM today</p>
+            </div>
+            <div className="banner-pattern"></div>
+          </div>
+
+          {/* Communities Section */}
+          <section className="communities-section">
+            <div className="section-header">
+              <h2>
+                <FaCommentAlt className="section-icon" />
+                Your Communities
+              </h2>
+              <button className="section-more">
+                <FaEllipsisH />
+              </button>
+            </div>
+            
+            <div className="communities-grid">
               {userDetails?.faculty && (
                 <NavLink
                   to="/chatPage"
@@ -299,10 +349,13 @@ const Home = () => {
                     title: userDetails.faculty,
                     userFilter: [{ field: "faculty", value: userDetails.faculty }],
                   }}
+                  className="community-card faculty"
                 >
-                  <div className="chat-group-card faculty">
-                    <div className="chat-group-initials">{getInitials(userDetails.faculty)}</div>
-                    <div className="chat-group-name">{userDetails.faculty}</div>
+                  <div className="card-bg"></div>
+                  <div className="card-initials">{getInitials(userDetails.faculty)}</div>
+                  <div className="card-content">
+                    <h3>{userDetails.faculty}</h3>
+                    <p>Faculty Community</p>
                   </div>
                 </NavLink>
               )}
@@ -323,275 +376,197 @@ const Home = () => {
                       { field: "degreeProgram", value: userDetails.degreeProgram },
                     ],
                   }}
+                  className="community-card degree"
                 >
-                  <div className="chat-group-card degree">
-                    <div className="chat-group-initials">
-                      {getInitials(
-                        userDetails.degreeProgram.replace(/^BSc\s*\(Hons\)\s*/i, "")
-                      )}
-                    </div>
-                    <div className="chat-group-name">
-                      {userDetails.degreeProgram.replace(/^BSc\s*\(Hons\)\s*/i, "")}
-                    </div>
+                  <div className="card-bg"></div>
+                  <div className="card-initials">
+                    {getInitials(userDetails.degreeProgram.replace(/^BSc\s*\(Hons\)\s*/i, ""))}
+                  </div>
+                  <div className="card-content">
+                    <h3>{userDetails.degreeProgram.replace(/^BSc\s*\(Hons\)\s*/i, "")}</h3>
+                    <p>Degree Program</p>
                   </div>
                 </NavLink>
               )}
 
-              {userDetails?.faculty &&
-                userDetails?.degreeProgram &&
-                userDetails?.batchNumber && (
-                  <NavLink
-                    to="/chatPage"
-                    state={{
-                      chatPath: [
-                        "Faculties",
-                        userDetails.faculty,
-                        "Degrees",
-                        userDetails.degreeProgram,
-                        "Batches",
-                        userDetails.batchNumber,
-                        "chat",
-                      ],
-                      title: userDetails.batchNumber,
-                      userFilter: [
-                        { field: "batchNumber", value: userDetails.batchNumber },
-                      ],
-                    }}
-                  >
-                    <div className="chat-group-card batch">
-                      <div className="chat-group-initials">{userDetails.batchNumber}</div>
-                      <div className="chat-group-name">Batch {userDetails.batchNumber}</div>
-                    </div>
-                  </NavLink>
-                )}
+              {userDetails?.faculty && userDetails?.degreeProgram && userDetails?.batchNumber && (
+                <NavLink
+                  to="/chatPage"
+                  state={{
+                    chatPath: [
+                      "Faculties",
+                      userDetails.faculty,
+                      "Degrees",
+                      userDetails.degreeProgram,
+                      "Batches",
+                      userDetails.batchNumber,
+                      "chat",
+                    ],
+                    title: userDetails.batchNumber,
+                    userFilter: [
+                      { field: "batchNumber", value: userDetails.batchNumber },
+                    ],
+                  }}
+                  className="community-card batch"
+                >
+                  <div className="card-bg"></div>
+                  <div className="card-initials">{userDetails.batchNumber}</div>
+                  <div className="card-content">
+                    <h3>Batch {userDetails.batchNumber}</h3>
+                    <p>Batch Community</p>
+                  </div>
+                </NavLink>
+              )}
             </div>
-          </div>
+          </section>
 
-          {/* Dashboard Content */}
-          <div className="dashboard-content">
-            <h1 className="dashboard-title">University Announcements</h1>
+          {/* Announcements Section */}
+          <section className="announcements-section">
+            <div className="section-header">
+              <h2>
+                <FaBell className="section-icon" />
+                University Announcements
+              </h2>
+              <button className="section-more">
+                <FaEllipsisH />
+              </button>
+            </div>
 
             {loading ? (
-              <div className="loading-announcements">
-                <div className="loading-spinner"></div>
+              <div className="loading-state">
+                <div className="spinner"></div>
                 <p>Loading announcements...</p>
               </div>
             ) : (
               <>
-                {/* Announcement Sections */}
-                <section className="announcement-section">
-                  <div className="section-header">
-                    <h2>
-                      <FaBell className="section-icon" />
-                      Special Announcements
-                    </h2>
-                    <a href="#" className="view-all">
-                      View All <FaChevronRight className="view-all-icon" />
-                    </a>
-                  </div>
-                  {announcements.special.length === 0 ? (
-                    <div className="no-announcements">
-                      <p>No special announcements found</p>
-                    </div>
-                  ) : (
-                    <div className="announcements-grid">
-                      {filterAnnouncements(announcements.special).map(
-                        (announcement) => (
-                          <div
-                            className={`announcement-card ${announcement.type} ${
-                              announcement.urgent ? "urgent" : ""
-                            }`}
-                            key={announcement.id}
-                          >
-                            <div className="card-header">
-                              <div className="card-badge">
-                                <span>{announcement.type}</span>
-                              </div>
-                              {announcement.urgent && (
-                                <div className="urgent-badge">URGENT</div>
-                              )}
-                            </div>
-                            <div className="card-content">
-                              <h3>{announcement.title}</h3>
-                              <p>{announcement.content}</p>
-                              <div className="card-footer">
-                                <div>
-                                  <span className="date">{announcement.date}</span>
-                                  <p className="created-by">Posted by: {announcement.createdBy}</p>
-                                </div>
-                                <button className="details-btn">
-                                  View Details{" "}
-                                  <FaChevronRight className="details-icon" />
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        )
-                      )}
-                    </div>
-                  )}
-                </section>
-
-                <section className="announcement-section">
-                  <div className="section-header">
-                    <h2>
-                      <FaBook className="section-icon" />
-                      Academic Announcements
-                    </h2>
-                    <a href="#" className="view-all">
-                      View All <FaChevronRight className="view-all-icon" />
-                    </a>
-                  </div>
-                  {announcements.academic.length === 0 ? (
-                    <div className="no-announcements">
-                      <p>No academic announcements found</p>
-                    </div>
-                  ) : (
-                    <div className="announcements-grid">
-                      {filterAnnouncements(announcements.academic).map(
-                        (announcement) => (
-                          <div
-                            className={`announcement-card ${announcement.type} ${
-                              announcement.urgent ? "urgent" : ""
-                            }`}
-                            key={announcement.id}
-                          >
-                            <div className="card-header">
-                              <div className="card-badge">
-                                <span>{announcement.type}</span>
-                              </div>
-                              {announcement.urgent && (
-                                <div className="urgent-badge">URGENT</div>
-                              )}
-                            </div>
-                            <div className="card-content">
-                              <h3>{announcement.title}</h3>
-                              <p>{announcement.content}</p>
-                              <div className="card-footer">
-                                <div>
-                                  <span className="date">{announcement.date}</span>
-                                  <p className="created-by">Posted by: {announcement.createdBy}</p>
-                                </div>
-                                <button className="details-btn">
-                                  View Details{" "}
-                                  <FaChevronRight className="details-icon" />
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        )
-                      )}
-                    </div>
-                  )}
-                </section>
-
-                <section className="announcement-section">
-                  <div className="section-header">
-                    <h2>
-                      <FaCalendarAlt className="section-icon" />
-                      Events
-                    </h2>
-                    <a href="#" className="view-all">
-                      View All <FaChevronRight className="view-all-icon" />
-                    </a>
-                  </div>
-                  {announcements.event.length === 0 ? (
-                    <div className="no-announcements">
-                      <p>No events found</p>
-                    </div>
-                  ) : (
-                    <div className="announcements-grid">
-                      {filterAnnouncements(announcements.event).map((announcement) => (
-                        <div
-                          className={`announcement-card ${announcement.type} ${
-                            announcement.urgent ? "urgent" : ""
-                          }`}
-                          key={announcement.id}
-                        >
-                          <div className="card-header">
-                            <div className="card-badge">
-                              <span>{announcement.type}</span>
-                            </div>
-                            {announcement.urgent && (
-                              <div className="urgent-badge">URGENT</div>
-                            )}
-                          </div>
-                          <div className="card-content">
-                            <h3>{announcement.title}</h3>
-                            <p>{announcement.content}</p>
-                            <div className="card-footer">
-                              <div>
-                                <span className="date">{announcement.date}</span>
-                                <p className="created-by">Posted by: {announcement.createdBy}</p>
-                              </div>
-                              <button className="details-btn">
-                                View Details <FaChevronRight className="details-icon" />
-                              </button>
-                            </div>
-                          </div>
+                {/* Special Announcements */}
+                <div className="announcement-category">
+                  <h3 className="category-title">
+                    <FaBell />
+                    Special Announcements
+                  </h3>
+                  <div className="announcements-grid">
+                    {filterAnnouncements(announcements.special).map(announcement => (
+                      <div 
+                        key={announcement.id} 
+                        className="announcement-card special"
+                        onClick={() => openAnnouncementDetails(announcement)}
+                      >
+                        <div className="card-corner"></div>
+                        <div className="card-header">
+                          <span className="card-badge">Special</span>
+                          {announcement.urgent && <span className="urgent-tag">URGENT</span>}
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </section>
-
-                <section className="announcement-section">
-                  <div className="section-header">
-                    <h2>
-                      <FaUniversity className="section-icon" />
-                      Facility Updates
-                    </h2>
-                    <a href="#" className="view-all">
-                      View All <FaChevronRight className="view-all-icon" />
-                    </a>
+                        <div className="card-body">
+                          <h4>{announcement.title}</h4>
+                          <p>{announcement.content.substring(0, 120)}...</p>
+                        </div>
+                        <div className="card-footer">
+                          <span className="date">{announcement.date}</span>
+                          <span className="author">{announcement.createdBy}</span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                  {announcements.facility.length === 0 ? (
-                    <div className="no-announcements">
-                      <p>No facility updates found</p>
-                    </div>
-                  ) : (
-                    <div className="announcements-grid">
-                      {filterAnnouncements(announcements.facility).map(
-                        (announcement) => (
-                          <div
-                            className={`announcement-card ${announcement.type} ${
-                              announcement.urgent ? "urgent" : ""
-                            }`}
-                            key={announcement.id}
-                          >
-                            <div className="card-header">
-                              <div className="card-badge">
-                                <span>{announcement.type}</span>
-                              </div>
-                              {announcement.urgent && (
-                                <div className="urgent-badge">URGENT</div>
-                              )}
-                            </div>
-                            <div className="card-content">
-                              <h3>{announcement.title}</h3>
-                              <p>{announcement.content}</p>
-                              <div className="card-footer">
-                                <div>
-                                  <span className="date">{announcement.date}</span>
-                                  <p className="created-by">Posted by: {announcement.createdBy}</p>
-                                </div>
-                                <button className="details-btn">
-                                  View Details{" "}
-                                  <FaChevronRight className="details-icon" />
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        )
-                      )}
-                    </div>
-                  )}
-                </section>
+                </div>
+
+                {/* Academic Announcements */}
+                <div className="announcement-category">
+                  <h3 className="category-title">
+                    <FaBook />
+                    Academic Announcements
+                  </h3>
+                  <div className="announcements-grid">
+                    {filterAnnouncements(announcements.academic).map(announcement => (
+                      <div 
+                        key={announcement.id} 
+                        className="announcement-card academic"
+                        onClick={() => openAnnouncementDetails(announcement)}
+                      >
+                        <div className="card-corner"></div>
+                        <div className="card-header">
+                          <span className="card-badge">Academic</span>
+                          {announcement.urgent && <span className="urgent-tag">URGENT</span>}
+                        </div>
+                        <div className="card-body">
+                          <h4>{announcement.title}</h4>
+                          <p>{announcement.content.substring(0, 120)}...</p>
+                        </div>
+                        <div className="card-footer">
+                          <span className="date">{announcement.date}</span>
+                          <span className="author">{announcement.createdBy}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Events */}
+                <div className="announcement-category">
+                  <h3 className="category-title">
+                    <FaCalendarAlt />
+                    Events
+                  </h3>
+                  <div className="announcements-grid">
+                    {filterAnnouncements(announcements.event).map(announcement => (
+                      <div 
+                        key={announcement.id} 
+                        className="announcement-card event"
+                        onClick={() => openAnnouncementDetails(announcement)}
+                      >
+                        <div className="card-corner"></div>
+                        <div className="card-header">
+                          <span className="card-badge">Event</span>
+                          {announcement.urgent && <span className="urgent-tag">URGENT</span>}
+                        </div>
+                        <div className="card-body">
+                          <h4>{announcement.title}</h4>
+                          <p>{announcement.content.substring(0, 120)}...</p>
+                        </div>
+                        <div className="card-footer">
+                          <span className="date">{announcement.date}</span>
+                          <span className="author">{announcement.createdBy}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Facility Updates */}
+                <div className="announcement-category">
+                  <h3 className="category-title">
+                    <FaUniversity />
+                    Facility Updates
+                  </h3>
+                  <div className="announcements-grid">
+                    {filterAnnouncements(announcements.facility).map(announcement => (
+                      <div 
+                        key={announcement.id} 
+                        className="announcement-card facility"
+                        onClick={() => openAnnouncementDetails(announcement)}
+                      >
+                        <div className="card-corner"></div>
+                        <div className="card-header">
+                          <span className="card-badge">Facility</span>
+                          {announcement.urgent && <span className="urgent-tag">URGENT</span>}
+                        </div>
+                        <div className="card-body">
+                          <h4>{announcement.title}</h4>
+                          <p>{announcement.content.substring(0, 120)}...</p>
+                        </div>
+                        <div className="card-footer">
+                          <span className="date">{announcement.date}</span>
+                          <span className="author">{announcement.createdBy}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </>
             )}
-          </div>
+          </section>
         </div>
-      </div>
+      </main>
     </div>
   );
 };

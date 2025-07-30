@@ -13,7 +13,13 @@ import {
   FaBell,
   FaExclamationCircle,
   FaCheckCircle,
-  FaArrowLeft
+  FaArrowLeft,
+  FaEnvelope,
+  FaUniversity,
+  FaGraduationCap,
+  FaUsers,
+  FaCalendarCheck,
+  FaCalendarTimes
 } from 'react-icons/fa';
 import {
   collection,
@@ -226,8 +232,6 @@ function Profile() {
         updatedAt: serverTimestamp()
       };
     
-      console.log("Creating appointment with data:", appointmentData);
-
       await addDoc(collection(db, 'Appointments'), appointmentData);
       setSuccess(true);
       setDate('');
@@ -354,278 +358,365 @@ function Profile() {
 
   return (
     <div className="profile-container">
-      <button 
-        onClick={() => navigate(-1)} 
-        className="special-back-button"
-      >
-        <FaArrowLeft /> BACK TO ANNOUNCEMENTS
-      </button>
-
-      <div className={`profile-card ${currentUser.role === 'staff' ? 'lecturer-view' : ''}`}>
-        <h2>
+      <div className="profile-header">
+        <button 
+          onClick={() => navigate(-1)} 
+          className="back-button"
+        >
+          <FaArrowLeft /> Back to Dashboard
+        </button>
+        <h1>
           {currentUser.role === 'student' ? (
             <><FaUserGraduate /> Student Profile</>
           ) : (
             <><FaChalkboardTeacher /> Lecturer Profile</>
           )}
-        </h2>
-        
-        <div className="profile-details">
-          <p><strong>Name:</strong> {currentUser.name}</p>
-          <p><strong>Email:</strong> {currentUser.email}</p>
-          {currentUser.faculty && <p><strong>Faculty:</strong> {currentUser.faculty}</p>}
-          {currentUser.degreeProgram && <p><strong>Degree:</strong> {currentUser.degreeProgram}</p>}
-          {currentUser.batchNumber && <p><strong>Batch:</strong> {currentUser.batchNumber}</p>}
-          <p><strong>Role:</strong> {currentUser.role}</p>
-          {currentUser.role === 'staff' && <p><strong>Assigned Modules:</strong> {modules.join(', ')}</p>}
+        </h1>
+      </div>
+
+      <div className="profile-content">
+        <div className="profile-sidebar">
+          <div className="user-card">
+            <div className="user-avatar">
+              {currentUser.role === 'student' ? (
+                <FaUserGraduate size={48} />
+              ) : (
+                <FaChalkboardTeacher size={48} />
+              )}
+            </div>
+            <h2>{currentUser.name}</h2>
+            <p className="user-email"><FaEnvelope /> {currentUser.email}</p>
+            <p className="user-role">{currentUser.role}</p>
+            
+            <div className="user-details">
+              {currentUser.faculty && (
+                <div className="detail-item">
+                  <FaUniversity />
+                  <span>{currentUser.faculty}</span>
+                </div>
+              )}
+              {currentUser.degreeProgram && (
+                <div className="detail-item">
+                  <FaGraduationCap />
+                  <span>{currentUser.degreeProgram}</span>
+                </div>
+              )}
+              {currentUser.batchNumber && (
+                <div className="detail-item">
+                  <FaUsers />
+                  <span>Batch {currentUser.batchNumber}</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {currentUser.role === 'student' && modules.length > 0 && (
+            <div className="modules-card">
+              <h3><FaBook /> Your Modules</h3>
+              <ul className="modules-list">
+                {modules.map((module) => (
+                  <li key={module}>
+                    <FaBook className="module-icon" />
+                    <span>{module}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
 
-        {currentUser.role === 'student' ? (
-          <>
-            <div className="profile-section">
-              <h3><FaBook /> Your Modules</h3>
-              {loading ? <p>Loading modules...</p> : 
-               error ? <p className="error">{error}</p> : 
-               modules.length > 0 ? (
-                <ul className="module-list">
-                  {modules.map((module) => <li key={module}>{module}</li>)}
-                </ul>
-              ) : <p>No modules found</p>}
-            </div>
-
-            <div className="profile-section">
-              <div className="section-header">
-                <h3><FaCalendarAlt /> Your Appointments</h3>
-                {hasNewNotifications && (
-                  <span className="notification-badge">
-                    <FaBell /> New Response
-                  </span>
-                )}
-              </div>
-              
-              {studentAppointments.length > 0 ? (
-                <div className="appointments-list">
-                  {studentAppointments.map((appt) => (
-                    <div 
-                      key={appt.id} 
-                      className={`appointment-card status-${appt.status.toLowerCase()} ${
-                        !appt.studentViewed && appt.status !== 'Pending' ? 'unread' : ''
-                      }`}
-                      onClick={() => markAsViewed(appt.id)}
-                    >
-                      <div className="appointment-header">
-                        <h4>{appt.module} with {appt.lecturerName}</h4>
-                        <span className={`status-badge ${appt.status.toLowerCase()}`}>
-                          {appt.status === 'Pending' ? <FaSpinner className="spinner" /> :
-                           appt.status === 'Approved' ? <FaCheckCircle /> :
-                           <FaExclamationCircle />}
-                          {appt.status}
-                        </span>
-                      </div>
-                      
-                      <div className="appointment-details">
-                        <p><strong>Date:</strong> {formatDate(appt.date)} at {appt.time}</p>
-                        <p><strong>Reason:</strong> {appt.reason}</p>
-                        
-                        {appt.status !== 'Pending' && (
-                          <>
-                            <p className="lecturer-response">
-                              <strong>Lecturer Response:</strong> {appt.lecturerReply}
-                            </p>
-                            <p className="response-time">
-                              <small>Updated: {formatDateTime(appt.updatedAt)}</small>
-                            </p>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+        <div className="profile-main">
+          {currentUser.role === 'student' ? (
+            <>
+              <div className="appointments-section">
+                <div className="section-header">
+                  <h2><FaCalendarAlt /> Your Appointments</h2>
+                  {hasNewNotifications && (
+                    <span className="notification-badge pulse">
+                      <FaBell /> New Response
+                    </span>
+                  )}
+                  <button 
+                    onClick={() => setShowAppointmentForm(!showAppointmentForm)}
+                    className={`btn ${showAppointmentForm ? 'btn-secondary' : 'btn-primary'}`}
+                  >
+                    {showAppointmentForm ? 'Cancel' : 'Book New Appointment'}
+                  </button>
                 </div>
-              ) : <p>No appointments booked yet</p>}
-            </div>
+                
+                {showAppointmentForm && (
+                  <div className="appointment-form-container">
+                    {success ? (
+                      <div className="success-message">
+                        <FaCheckCircle size={48} className="success-icon" />
+                        <h3>Appointment Booked Successfully!</h3>
+                        <p>Your lecturer will respond soon.</p>
+                        <button 
+                          onClick={() => setSuccess(false)}
+                          className="btn btn-primary"
+                        >
+                          Book Another Appointment
+                        </button>
+                      </div>
+                    ) : (
+                      <form onSubmit={handleAppointmentSubmit} className="appointment-form">
+                        <h3>New Appointment Request</h3>
+                        
+                        <div className="form-row">
+                          <div className="form-group">
+                            <label><FaBook /> Module</label>
+                            <select
+                              value={selectedModule}
+                              onChange={(e) => setSelectedModule(e.target.value)}
+                              required
+                            >
+                              <option value="">Select a module</option>
+                              {modules.map((module) => (
+                                <option key={module} value={module}>
+                                  {module}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
 
-            <div className="profile-section">
-              <button 
-                onClick={() => setShowAppointmentForm(!showAppointmentForm)}
-                className="btn-action"
-              >
-                {showAppointmentForm ? 'Cancel' : 'Book New Appointment'}
-              </button>
-              
-              {showAppointmentForm && (
-                <div className="appointment-form">
-                  {success ? (
-                    <div className="success-message">
-                      <h3>Appointment Booked Successfully!</h3>
-                      <p>Your lecturer will respond soon.</p>
-                      <button 
-                        onClick={() => setSuccess(false)}
-                        className="btn-action"
-                      >
-                        Book Another
-                      </button>
-                    </div>
-                  ) : (
-                    <>
-                      <h3>Book Appointment</h3>
-                      {error && <p className="error">{error}</p>}
-                      <form onSubmit={handleAppointmentSubmit}>
-                        <div className="form-group">
-                          <label><FaBook /> Module:</label>
-                          <select
-                            value={selectedModule}
-                            onChange={(e) => setSelectedModule(e.target.value)}
-                            required
-                          >
-                            <option value="">Select a module</option>
-                            {modules.map((module) => (
-                              <option key={module} value={module}>
-                                {module}
-                              </option>
-                            ))}
-                          </select>
+                        <div className="form-row">
+                          <div className="form-group">
+                            <label><FaCalendarAlt /> Date</label>
+                            <input
+                              type="date"
+                              value={date}
+                              onChange={(e) => setDate(e.target.value)}
+                              min={new Date().toISOString().split('T')[0]}
+                              required
+                            />
+                          </div>
+                          
+                          <div className="form-group">
+                            <label><FaClock /> Time</label>
+                            <input
+                              type="time"
+                              value={time}
+                              onChange={(e) => setTime(e.target.value)}
+                              min="09:00"
+                              max="17:00"
+                              required
+                            />
+                          </div>
                         </div>
 
                         <div className="form-group">
-                          <label><FaCalendarAlt /> Date:</label>
-                          <input
-                            type="date"
-                            value={date}
-                            onChange={(e) => setDate(e.target.value)}
-                            min={new Date().toISOString().split('T')[0]}
-                            required
-                          />
-                        </div>
-
-                        <div className="form-group">
-                          <label><FaClock /> Time:</label>
-                          <input
-                            type="time"
-                            value={time}
-                            onChange={(e) => setTime(e.target.value)}
-                            min="09:00"
-                            max="17:00"
-                            required
-                          />
-                        </div>
-
-                        <div className="form-group">
-                          <label><FaInfoCircle /> Reason:</label>
+                          <label><FaInfoCircle /> Reason for Appointment</label>
                           <textarea
                             value={reason}
                             onChange={(e) => setReason(e.target.value)}
-                            placeholder="Briefly explain the purpose of this meeting"
+                            placeholder="Briefly explain the purpose of this meeting..."
                             required
                             minLength={10}
+                            rows={4}
                           />
                         </div>
+
+                        {error && <div className="error-message">{error}</div>}
 
                         <button 
                           type="submit" 
                           disabled={submitting}
-                          className="btn-submit"
+                          className="btn btn-primary btn-block"
                         >
-                          {submitting ? <><FaSpinner className="spinner" /> Submitting...</> : 'Submit Appointment'}
+                          {submitting ? <><FaSpinner className="spinner" /> Submitting...</> : 'Submit Request'}
                         </button>
                       </form>
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
-          </>
-        ) : (
-          <>
-            <div className="profile-section">
-              <h3><FaCalendarAlt /> Appointment Requests</h3>
-              
-              <div className="appointment-tabs">
-                <button
-                  className={activeTab === 'pending' ? 'active' : ''}
-                  onClick={() => setActiveTab('pending')}
-                >
-                  Pending
-                </button>
-                <button
-                  className={activeTab === 'approved' ? 'active' : ''}
-                  onClick={() => setActiveTab('approved')}
-                >
-                  Approved
-                </button>
-                <button
-                  className={activeTab === 'rejected' ? 'active' : ''}
-                  onClick={() => setActiveTab('rejected')}
-                >
-                  Rejected
-                </button>
-              </div>
-              
-              {loading ? (
-                <div className="loading-spinner">
-                  <FaSpinner className="spinner" /> Loading appointments...
-                </div>
-              ) : error ? (
-                <p className="error">{error}</p>
-              ) : filteredAppointments.length > 0 ? (
-                <div className="appointments-list">
-                  {filteredAppointments.map((appt) => (
-                    <div key={appt.id} className={`appointment-card status-${appt.status.toLowerCase()}`}>
-                      <div className="appointment-header">
-                        <h4>{appt.module} - {appt.studentName}</h4>
-                        <span className={`status-badge ${appt.status.toLowerCase()}`}>
-                          {appt.status}
-                        </span>
-                      </div>
-                      
-                      <div className="appointment-details">
-                        <p><strong>Student:</strong> {appt.studentEmail}</p>
-                        <p><strong>Date:</strong> {formatDate(appt.date)} at {appt.time}</p>
-                        <p><strong>Reason:</strong> {appt.reason}</p>
+                    )}
+                  </div>
+                )}
+
+                {studentAppointments.length > 0 ? (
+                  <div className="appointments-list">
+                    {studentAppointments.map((appt) => (
+                      <div 
+                        key={appt.id} 
+                        className={`appointment-card ${appt.status.toLowerCase()} ${
+                          !appt.studentViewed && appt.status !== 'Pending' ? 'unread' : ''
+                        }`}
+                        onClick={() => markAsViewed(appt.id)}
+                      >
+                        <div className="appointment-header">
+                          <div className="appointment-title">
+                            <h4>{appt.module}</h4>
+                            <p>With {appt.lecturerName}</p>
+                          </div>
+                          <div className={`appointment-status ${appt.status.toLowerCase()}`}>
+                            {appt.status === 'Pending' ? <FaSpinner className="spinner" /> :
+                             appt.status === 'Approved' ? <FaCheckCircle /> :
+                             <FaTimes />}
+                            <span>{appt.status}</span>
+                          </div>
+                        </div>
                         
-                        {appt.status !== 'Pending' && (
-                          <p><strong>Your Response:</strong> {appt.lecturerReply}</p>
+                        <div className="appointment-details">
+                          <div className="detail-item">
+                            <FaCalendarAlt />
+                            <span>{formatDate(appt.date)} at {appt.time}</span>
+                          </div>
+                          <div className="detail-item">
+                            <FaInfoCircle />
+                            <span>{appt.reason}</span>
+                          </div>
+                          
+                          {appt.status !== 'Pending' && (
+                            <>
+                              <div className="detail-item response">
+                                <FaChalkboardTeacher />
+                                <div>
+                                  <strong>Lecturer Response:</strong>
+                                  <p>{appt.lecturerReply}</p>
+                                </div>
+                              </div>
+                              <div className="response-time">
+                                Updated: {formatDateTime(appt.updatedAt)}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="empty-state">
+                    <FaCalendarAlt size={48} />
+                    <h3>No Appointments Booked</h3>
+                    <p>You haven't booked any appointments yet. Click the button above to request one.</p>
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="appointments-section">
+                <div className="section-header">
+                  <h2><FaCalendarAlt /> Appointment Requests</h2>
+                  <div className="tabs">
+                    <button
+                      className={`tab ${activeTab === 'pending' ? 'active' : ''}`}
+                      onClick={() => setActiveTab('pending')}
+                    >
+                      <FaCalendarAlt /> Pending
+                    </button>
+                    <button
+                      className={`tab ${activeTab === 'approved' ? 'active' : ''}`}
+                      onClick={() => setActiveTab('approved')}
+                    >
+                      <FaCalendarCheck /> Approved
+                    </button>
+                    <button
+                      className={`tab ${activeTab === 'rejected' ? 'active' : ''}`}
+                      onClick={() => setActiveTab('rejected')}
+                    >
+                      <FaCalendarTimes /> Rejected
+                    </button>
+                  </div>
+                </div>
+                
+                {filteredAppointments.length > 0 ? (
+                  <div className="appointments-list">
+                    {filteredAppointments.map((appt) => (
+                      <div key={appt.id} className={`appointment-card ${appt.status.toLowerCase()}`}>
+                        <div className="appointment-header">
+                          <div className="appointment-title">
+                            <h4>{appt.module}</h4>
+                            <p>Requested by {appt.studentName}</p>
+                          </div>
+                          <div className={`appointment-status ${appt.status.toLowerCase()}`}>
+                            <span>{appt.status}</span>
+                          </div>
+                        </div>
+                        
+                        <div className="appointment-details">
+                          <div className="detail-item">
+                            <FaUserGraduate />
+                            <span>{appt.studentEmail}</span>
+                          </div>
+                          <div className="detail-item">
+                            <FaCalendarAlt />
+                            <span>{formatDate(appt.date)} at {appt.time}</span>
+                          </div>
+                          <div className="detail-item">
+                            <FaInfoCircle />
+                            <span>{appt.reason}</span>
+                          </div>
+                          
+                          {appt.status !== 'Pending' && (
+                            <div className="detail-item response">
+                              <FaChalkboardTeacher />
+                              <div>
+                                <strong>Your Response:</strong>
+                                <p>{appt.lecturerReply}</p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {appt.status === 'Pending' && (
+                          <div className="appointment-actions">
+                            <button 
+                              onClick={() => handleApproveAppointment(appt.id)}
+                              disabled={processingAppointment === appt.id}
+                              className="btn btn-approve"
+                            >
+                              {processingAppointment === appt.id ? (
+                                <FaSpinner className="spinner" />
+                              ) : (
+                                <>
+                                  <FaCheck /> Approve
+                                </>
+                              )}
+                            </button>
+                            <button 
+                              onClick={() => handleRejectAppointment(appt.id)}
+                              disabled={processingAppointment === appt.id}
+                              className="btn btn-reject"
+                            >
+                              {processingAppointment === appt.id ? (
+                                <FaSpinner className="spinner" />
+                              ) : (
+                                <>
+                                  <FaTimes /> Reject
+                                </>
+                              )}
+                            </button>
+                          </div>
                         )}
                       </div>
-                      
-                      {appt.status === 'Pending' && (
-                        <div className="appointment-actions">
-                          <button 
-                            onClick={() => handleApproveAppointment(appt.id)}
-                            disabled={processingAppointment === appt.id}
-                            className="btn-approve"
-                          >
-                            {processingAppointment === appt.id ? (
-                              <FaSpinner className="spinner" />
-                            ) : (
-                              <>
-                                <FaCheck /> Approve
-                              </>
-                            )}
-                          </button>
-                          <button 
-                            onClick={() => handleRejectAppointment(appt.id)}
-                            disabled={processingAppointment === appt.id}
-                            className="btn-reject"
-                          >
-                            {processingAppointment === appt.id ? (
-                              <FaSpinner className="spinner" />
-                            ) : (
-                              <>
-                                <FaTimes /> Reject
-                              </>
-                            )}
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="no-appointments">No {activeTab} appointments found</p>
-              )}
-            </div>
-          </>
-        )}
+                    ))}
+                  </div>
+                ) : (
+                  <div className="empty-state">
+                    {activeTab === 'pending' ? (
+                      <>
+                        <FaCalendarAlt size={48} />
+                        <h3>No Pending Requests</h3>
+                        <p>You don't have any pending appointment requests at this time.</p>
+                      </>
+                    ) : activeTab === 'approved' ? (
+                      <>
+                        <FaCalendarCheck size={48} />
+                        <h3>No Approved Appointments</h3>
+                        <p>You haven't approved any appointments yet.</p>
+                      </>
+                    ) : (
+                      <>
+                        <FaCalendarTimes size={48} />
+                        <h3>No Rejected Appointments</h3>
+                        <p>You haven't rejected any appointments yet.</p>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
