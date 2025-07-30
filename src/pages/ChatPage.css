@@ -844,15 +844,16 @@
 }
 
 .announcement-banner {
+  width: 100%;
   background: #fdf6e3;
-  padding: 0.5rem 1rem;
+  padding: 10px 15px;
   border: 1px solid #00843D;
   border-radius: 15px;
   margin-top: 5px;
   display: flex;
   flex-direction: row;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
   font-size: 0.9rem;
   position: sticky;
   top: 0;
@@ -861,7 +862,6 @@
 
 .announcement-content {
   width: 100%;
-  max-width: 900px;
   display: flex;
   align-items: center;
   flex-direction: row;
